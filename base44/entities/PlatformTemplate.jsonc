@@ -1,0 +1,56 @@
+{
+  "name": "PlatformTemplate",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "etsy",
+        "poshmark",
+        "mercari",
+        "depop",
+        "grailed",
+        "facebook_marketplace",
+        "whatnot"
+      ]
+    },
+    "title_template": {
+      "type": "string",
+      "description": "Template string for listing title"
+    },
+    "description_template": {
+      "type": "string",
+      "description": "Template string for listing description"
+    },
+    "pricing_strategy": {
+      "type": "string",
+      "enum": [
+        "use_master_price",
+        "round_up",
+        "round_down",
+        "percentage_adjustment",
+        "custom"
+      ],
+      "default": "use_master_price"
+    },
+    "price_adjustment_percent": {
+      "type": "number",
+      "description": "Percentage to adjust price up or down"
+    },
+    "hashtag_style": {
+      "type": "string",
+      "description": "Hashtag style preference for this platform"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "platform"
+  ]
+}

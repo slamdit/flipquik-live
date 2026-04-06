@@ -1,0 +1,51 @@
+{
+  "name": "Sale",
+  "type": "object",
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "description": "Reference to the Item that was sold"
+    },
+    "platform": {
+      "type": "string",
+      "description": "Platform where the item was sold"
+    },
+    "sold_price": {
+      "type": "number",
+      "description": "Price the item was sold for"
+    },
+    "fees": {
+      "type": "number",
+      "description": "Fees associated with the sale"
+    },
+    "shipping_cost": {
+      "type": "number",
+      "description": "Cost of shipping"
+    },
+    "net_profit": {
+      "type": "number",
+      "description": "Net profit from the sale"
+    },
+    "roi_percent": {
+      "type": "number",
+      "description": "Return on investment percentage"
+    },
+    "sold_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when the item was sold"
+    },
+    "ebay_order_id": {
+      "type": "string",
+      "description": "eBay order ID to prevent duplicate imports"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the sale (buyer info, special details, etc.)"
+    }
+  },
+  "required": [
+    "item_id",
+    "sold_price"
+  ]
+}

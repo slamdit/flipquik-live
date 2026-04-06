@@ -1,0 +1,70 @@
+{
+  "name": "MarketplaceAccount",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to the User who owns this account"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "etsy",
+        "poshmark",
+        "mercari",
+        "depop",
+        "grailed",
+        "facebook_marketplace",
+        "whatnot"
+      ],
+      "description": "The marketplace platform"
+    },
+    "account_name": {
+      "type": "string",
+      "description": "Display name or username on this platform"
+    },
+    "is_connected": {
+      "type": "boolean",
+      "default": false
+    },
+    "oauth_status": {
+      "type": "string",
+      "enum": [
+        "not_connected",
+        "connected",
+        "expired",
+        "error"
+      ],
+      "default": "not_connected"
+    },
+    "access_token_encrypted": {
+      "type": "string",
+      "description": "Encrypted OAuth access token"
+    },
+    "refresh_token_encrypted": {
+      "type": "string",
+      "description": "Encrypted OAuth refresh token"
+    },
+    "token_expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "shop_id_or_account_id": {
+      "type": "string"
+    },
+    "last_sync_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "enabled_for_distribution": {
+      "type": "boolean",
+      "default": true,
+      "description": "User has opted this platform in for distribution"
+    }
+  },
+  "required": [
+    "user_id",
+    "platform"
+  ]
+}

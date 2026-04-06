@@ -1,0 +1,86 @@
+{
+  "name": "MarketplaceAction",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "item_id": {
+      "type": "string"
+    },
+    "marketplace_listing_id": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "etsy",
+        "poshmark",
+        "mercari",
+        "depop",
+        "grailed",
+        "facebook_marketplace",
+        "whatnot"
+      ]
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "publish",
+        "update",
+        "delist",
+        "confirm_posted",
+        "confirm_delisted",
+        "resolve_error"
+      ]
+    },
+    "action_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "in_progress",
+        "completed",
+        "failed",
+        "skipped"
+      ],
+      "default": "pending"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "action_title": {
+      "type": "string"
+    },
+    "action_instructions": {
+      "type": "string"
+    },
+    "deep_link_url": {
+      "type": "string"
+    },
+    "action_payload_json": {
+      "type": "string"
+    },
+    "due_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id",
+    "item_id",
+    "platform",
+    "action_type"
+  ]
+}

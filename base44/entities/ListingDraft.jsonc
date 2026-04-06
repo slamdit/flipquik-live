@@ -1,0 +1,76 @@
+{
+  "name": "ListingDraft",
+  "type": "object",
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "description": "Reference to the Item this listing draft is for"
+    },
+    "platform": {
+      "type": "string",
+      "description": "Platform where the item will be listed"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the listing"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the listing"
+    },
+    "tags": {
+      "type": "string",
+      "description": "Tags for the listing"
+    },
+    "price_suggestion": {
+      "type": "number",
+      "description": "Suggested price for the listing"
+    },
+    "listing_status": {
+      "type": "string",
+      "enum": [
+        "incomplete",
+        "ready",
+        "exported",
+        "listed"
+      ],
+      "default": "incomplete",
+      "description": "Current status of the listing draft"
+    },
+    "export_text": {
+      "type": "string",
+      "description": "Formatted text ready for export"
+    },
+    "listing_notes": {
+      "type": "string",
+      "description": "Internal notes for posting instructions"
+    },
+    "suggested_list_price": {
+      "type": "number",
+      "description": "AI-suggested listing price based on market research"
+    },
+    "expected_sale_price": {
+      "type": "number",
+      "description": "Realistic expected sale price after negotiation"
+    },
+    "estimated_profit": {
+      "type": "number",
+      "description": "Estimated net profit after fees and costs"
+    },
+    "roi_percent": {
+      "type": "number",
+      "description": "Return on investment percentage"
+    },
+    "pricing_confidence": {
+      "type": "string",
+      "description": "Confidence level of pricing estimate (e.g. low, medium, high)"
+    },
+    "pricing_notes": {
+      "type": "string",
+      "description": "Notes or reasoning behind the pricing suggestion"
+    }
+  },
+  "required": [
+    "item_id"
+  ]
+}

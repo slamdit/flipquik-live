@@ -1,0 +1,155 @@
+{
+  "name": "Item",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to the User who owns this item"
+    },
+    "item_name": {
+      "type": "string",
+      "description": "Name of the item"
+    },
+    "brand": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "condition": {
+      "type": "string"
+    },
+    "size": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "purchase_price": {
+      "type": "number"
+    },
+    "purchase_location": {
+      "type": "string"
+    },
+    "purchase_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "internal_notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "captured",
+        "draft",
+        "ready",
+        "stored",
+        "sold",
+        "archived",
+        "research",
+        "listed"
+      ],
+      "default": "captured"
+    },
+    "listing_platforms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "marketplace_listings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string"
+          },
+          "listing_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "sold",
+              "delisted",
+              "draft"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "item_code": {
+      "type": "string"
+    },
+    "search_text": {
+      "type": "string"
+    },
+    "current_location_label": {
+      "type": "string"
+    },
+    "primary_photo_url": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "ebay_listing_id": {
+      "type": "string",
+      "description": "eBay SKU/listing ID"
+    },
+    "master_title": {
+      "type": "string",
+      "description": "Master listing title used as source for all platform variants"
+    },
+    "master_description": {
+      "type": "string",
+      "description": "Master listing description used as source for all platform variants"
+    },
+    "suggested_price": {
+      "type": "number",
+      "description": "Master suggested listing price"
+    },
+    "distribution_status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "ready",
+        "partially_distributed",
+        "distributed",
+        "sold",
+        "pending_delist"
+      ],
+      "default": "not_started",
+      "description": "Cross-listing distribution status"
+    },
+    "is_crosslisted": {
+      "type": "boolean",
+      "default": false
+    },
+    "sold_platform": {
+      "type": "string",
+      "description": "Platform where the item was sold"
+    },
+    "sold_date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id",
+    "item_name"
+  ]
+}

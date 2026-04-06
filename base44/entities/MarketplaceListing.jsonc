@@ -1,0 +1,88 @@
+{
+  "name": "MarketplaceListing",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "item_id": {
+      "type": "string",
+      "description": "Reference to the Item"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "etsy",
+        "poshmark",
+        "mercari",
+        "depop",
+        "grailed",
+        "facebook_marketplace",
+        "whatnot"
+      ]
+    },
+    "marketplace_account_id": {
+      "type": "string",
+      "description": "Reference to MarketplaceAccount"
+    },
+    "external_listing_id": {
+      "type": "string"
+    },
+    "external_listing_url": {
+      "type": "string"
+    },
+    "listing_status": {
+      "type": "string",
+      "enum": [
+        "not_listed",
+        "draft_prepared",
+        "queued_for_publish",
+        "listed",
+        "sold",
+        "pending_delist",
+        "delisted",
+        "sync_error",
+        "manual_action_required"
+      ],
+      "default": "not_listed"
+    },
+    "publish_mode": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "assisted",
+        "manual"
+      ],
+      "default": "assisted"
+    },
+    "platform_title": {
+      "type": "string"
+    },
+    "platform_description": {
+      "type": "string"
+    },
+    "platform_price": {
+      "type": "number"
+    },
+    "platform_category": {
+      "type": "string"
+    },
+    "platform_payload_json": {
+      "type": "string",
+      "description": "JSON string of full platform payload"
+    },
+    "last_sync_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_error_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "item_id",
+    "platform"
+  ]
+}

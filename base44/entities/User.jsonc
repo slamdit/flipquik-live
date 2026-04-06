@@ -1,0 +1,26 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "ebay_access_token": {
+      "type": "string",
+      "description": "eBay OAuth access token"
+    },
+    "ebay_refresh_token": {
+      "type": "string",
+      "description": "eBay OAuth refresh token"
+    },
+    "ebay_token_expiry": {
+      "type": "string",
+      "description": "eBay access token expiry timestamp"
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "MarketplaceCapability",
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "string",
+      "enum": [
+        "ebay",
+        "etsy",
+        "poshmark",
+        "mercari",
+        "depop",
+        "grailed",
+        "facebook_marketplace",
+        "whatnot"
+      ]
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "can_create_listing_direct": {
+      "type": "boolean",
+      "default": false
+    },
+    "can_update_listing_direct": {
+      "type": "boolean",
+      "default": false
+    },
+    "can_delist_direct": {
+      "type": "boolean",
+      "default": false
+    },
+    "can_import_csv": {
+      "type": "boolean",
+      "default": false
+    },
+    "can_prepare_assisted_listing": {
+      "type": "boolean",
+      "default": true
+    },
+    "requires_manual_publish": {
+      "type": "boolean",
+      "default": true
+    },
+    "supports_order_sync": {
+      "type": "boolean",
+      "default": false
+    },
+    "supports_status_sync": {
+      "type": "boolean",
+      "default": false
+    },
+    "platform_url": {
+      "type": "string",
+      "description": "Base URL to open the platform"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "platform"
+  ]
+}
