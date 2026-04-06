@@ -7,7 +7,7 @@ import { compressImage } from '@/utils/imageCompression';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import PhotoCapture from '@/components/capture/PhotoCapture';
-import { base44 } from '@/api/base44Client';
+import { ai } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const CONFIDENCE_STYLES = {
@@ -30,8 +30,8 @@ export default function QuikEval() {
   const runEvaluation = async () => {
     setEvaluating(true);
     try {
-      const evalResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are an expert reseller assistant helping someone decide whether to buy an item at a thrift store or sale.
+      const evalResult = await ai.invoke(
+        `You are an expert reseller assistant helping someone decide whether to buy an item at a thrift store or sale.
 
 Analyze the provided image(s) carefully. If there's a barcode or tag visible, use that information silently to improve your results.
 ${itemSpecs ? `
@@ -53,26 +53,26 @@ Return JSON with these fields:
 - notes: 1-2 sentence summary of what you see and why someone would/wouldn't want to flip this. If confidence is low, explain why (e.g., potential counterfeit, too generic, missing key details for identification).
 
 Be conservative. Do not inflate prices. Base estimates on realistic sold comps from top reseller sites (such as eBay, Poshmark, Mercari) within the last year.`,
-        model: 'gemini_3_flash',
-        add_context_from_internet: true,
-        file_urls: photos.map(p => p.compressedUrl || p),
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            item_name: { type: 'string' },
-            brand: { type: 'string' },
-            category: { type: 'string' },
-            condition: { type: 'string' },
-            retail_price: { type: 'number' },
-            resale_low: { type: 'number' },
-            resale_high: { type: 'number' },
-            suggested_resale_price: { type: 'number' },
-            confidence: { type: 'string' },
-            things_to_consider: { type: 'array', items: { type: 'string' } },
-            notes: { type: 'string' },
+        {
+          file_urls: photos.map(p => p.compressedUrl || p),
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              item_name: { type: 'string' },
+              brand: { type: 'string' },
+              category: { type: 'string' },
+              condition: { type: 'string' },
+              retail_price: { type: 'number' },
+              resale_low: { type: 'number' },
+              resale_high: { type: 'number' },
+              suggested_resale_price: { type: 'number' },
+              confidence: { type: 'string' },
+              things_to_consider: { type: 'array', items: { type: 'string' } },
+              notes: { type: 'string' },
+            },
           },
-        },
-      });
+        }
+      );
       setResult(evalResult);
     } catch (err) {
       toast.error('Evaluation failed. Try again.');

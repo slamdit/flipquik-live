@@ -6,7 +6,7 @@ import EditItemModal from '@/components/inventory/EditItemModal';
 import EbaySyncButton from '@/components/inventory/EbaySyncButton';
 import LocationPicker from '@/components/inventory/LocationPicker';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { auth, items as itemsDb } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -53,7 +53,7 @@ function ItemCard({ item, onEdit, onDelete }) {
     if (!window.confirm(`Delete "${item.item_name}"?`)) return;
     setDeleting(true);
     try {
-      await base44.entities.Item.delete(item.id);
+      await itemsDb.delete(item.id);
       toast.success('Item deleted');
       onDelete();
     } catch {
@@ -129,8 +129,8 @@ export default function Inventory() {
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['inventory-items'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      return base44.entities.Item.filter({ user_id: user.id }, '-created_date', 200);
+      const user = await auth.me();
+      return itemsDb.getAll({ filters: { user_id: user.id }, orderBy: '-created_date', limit: 200 });
     }
   });
 
