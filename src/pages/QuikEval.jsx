@@ -7,7 +7,7 @@ import { compressImage } from '@/utils/imageCompression';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import PhotoCapture from '@/components/capture/PhotoCapture';
-import { ai } from '@/lib/supabase';
+import supabase from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const CONFIDENCE_STYLES = {
@@ -30,13 +30,10 @@ export default function QuikEval() {
   const runEvaluation = async () => {
     setEvaluating(true);
     try {
-      const evalResult = await ai.invoke(
-        `You are an expert reseller assistant helping someone decide whether to buy an item at a thrift store or sale.
+      const prompt = `You are an expert reseller assistant helping someone decide whether to buy an item at a thrift store or sale.
 
 Analyze the provided image(s) carefully. If there's a barcode or tag visible, use that information silently to improve your results.
-${itemSpecs ? `
-The user has provided the following known details about the item: "${itemSpecs}". Use this to improve accuracy.
-` : ''}
+${itemSpecs ? `\nThe user has provided the following known details about the item: "${itemSpecs}". Use this to improve accuracy.\n` : ''}
 Your goal: identify the item and provide a conservative, realistic resale evaluation. Be highly skeptical of items that appear to be high value but lack clear authenticity. If an item *could* be high value but requires verification, explain what is needed for confirmation.
 
 Return JSON with these fields:
@@ -52,8 +49,11 @@ Return JSON with these fields:
 - things_to_consider: array of 3-4 short practical tips for a reseller (platform fit, common issues, demand, timing, or specific authentication requirements like "check for authentication papers," "look for serial numbers," "examine for specific hallmarks" if high value is conditional on external verification)
 - notes: 1-2 sentence summary of what you see and why someone would/wouldn't want to flip this. If confidence is low, explain why (e.g., potential counterfeit, too generic, missing key details for identification).
 
-Be conservative. Do not inflate prices. Base estimates on realistic sold comps from top reseller sites (such as eBay, Poshmark, Mercari) within the last year.`,
-        {
+Be conservative. Do not inflate prices. Base estimates on realistic sold comps from top reseller sites (such as eBay, Poshmark, Mercari) within the last year.`;
+
+      const { data: evalResult, error: fnError } = await supabase.functions.invoke('quikeval', {
+        body: {
+          prompt,
           file_urls: photos.map(p => p.compressedUrl || p),
           response_json_schema: {
             type: 'object',
@@ -71,8 +71,10 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
               notes: { type: 'string' },
             },
           },
-        }
-      );
+        },
+      });
+
+      if (fnError) throw fnError;
       setResult(evalResult);
     } catch (err) {
       toast.error('Evaluation failed. Try again.');
