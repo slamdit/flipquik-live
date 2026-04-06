@@ -13,30 +13,18 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, file_urls = [], response_json_schema } = await req.json();
+    const { prompt, response_json_schema } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY secret is not set in Supabase');
     }
 
-    // Build message content — images first, then the text prompt
-    const content: unknown[] = [];
-
-    for (const url of file_urls) {
-      if (url && typeof url === 'string') {
-        content.push({
-          type: 'image',
-          source: { type: 'url', url },
-        });
-      }
-    }
-
     const schemaHint = response_json_schema
       ? '\n\nRespond with valid JSON only. No markdown code fences, no extra text — just the raw JSON object.'
       : '';
 
-    content.push({ type: 'text', text: prompt + schemaHint });
+    const content = [{ type: 'text', text: prompt + schemaHint }];
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
