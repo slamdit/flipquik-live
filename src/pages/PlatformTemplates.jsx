@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { base44 } from '@/api/base44Client';
+import { auth, platformTemplates } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const PLATFORMS = [
@@ -125,30 +125,37 @@ export default function PlatformTemplates() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadTemplates();
-  }, []);
+  useEffect(() => { loadTemplates(); }, []);
 
   const loadTemplates = async () => {
     setLoading(true);
-    const user = await base44.auth.me();
-    const data = await base44.entities.PlatformTemplate.filter({ user_id: user.id });
-    setTemplates(data);
-    setLoading(false);
+    try {
+      const user = await auth.me();
+      const data = await platformTemplates.getAll({ filters: { user_id: user.id } });
+      setTemplates(data);
+    } catch {
+      setTemplates([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getTemplate = (platform) => templates.find(t => t.platform === platform);
 
   const handleSave = async (platform, form) => {
-    const user = await base44.auth.me();
-    const existing = getTemplate(platform);
-    if (existing) {
-      await base44.entities.PlatformTemplate.update(existing.id, form);
-    } else {
-      await base44.entities.PlatformTemplate.create({ user_id: user.id, platform, ...form });
+    try {
+      const user = await auth.me();
+      const existing = getTemplate(platform);
+      if (existing) {
+        await platformTemplates.update(existing.id, form);
+      } else {
+        await platformTemplates.create({ user_id: user.id, platform, ...form });
+      }
+      toast.success('Template saved!');
+      await loadTemplates();
+    } catch {
+      toast.error('Failed to save template');
     }
-    toast.success('Template saved!');
-    await loadTemplates();
   };
 
   return (

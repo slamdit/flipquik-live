@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import supabase from '@/lib/supabase';
 import { Link } from 'react-router-dom';
 
 export default function EbayAuthCallback() {
@@ -23,8 +23,11 @@ export default function EbayAuthCallback() {
       return;
     }
 
-    base44.functions.invoke('ebayAuthCallback', { code })
-      .then(() => setStatus('success'))
+    supabase.functions.invoke('ebayAuthCallback', { body: { code } })
+      .then(({ error }) => {
+        if (error) throw error;
+        setStatus('success');
+      })
       .catch(err => {
         setErrorMsg(err.message || 'Token exchange failed.');
         setStatus('error');

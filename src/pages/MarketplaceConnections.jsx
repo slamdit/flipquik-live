@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link2, CheckCircle, XCircle, Zap, Hand, Settings } from 'lucide-react';
+import { Link2, CheckCircle, XCircle, Zap, Hand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { base44 } from '@/api/base44Client';
+import { auth, marketplaceAccounts } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const ALL_PLATFORMS = [
@@ -58,10 +58,7 @@ function PlatformConnectionCard({ platform, account, onToggle, onDisconnect }) {
 
           {platform.mode === 'assisted' && (
             <div className="flex items-center gap-2 mt-2">
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={(val) => onToggle(platform.key, val)}
-              />
+              <Switch checked={isEnabled} onCheckedChange={(val) => onToggle(platform.key, val)} />
               <span className="text-xs text-slate-600">{isEnabled ? 'Enabled for distribution' : 'Disabled'}</span>
             </div>
           )}
@@ -99,38 +96,51 @@ export default function MarketplaceConnections() {
 
   const loadAccounts = async () => {
     setLoading(true);
-    const user = await base44.auth.me();
-    const accs = await base44.entities.MarketplaceAccount.filter({ user_id: user.id });
-    setAccounts(accs);
-    setLoading(false);
+    try {
+      const user = await auth.me();
+      const accs = await marketplaceAccounts.getAll({ filters: { user_id: user.id } });
+      setAccounts(accs);
+    } catch {
+      setAccounts([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getAccountFor = (platform) => accounts.find(a => a.platform === platform);
 
   const handleToggle = async (platform, enabled) => {
-    const user = await base44.auth.me();
-    const existing = getAccountFor(platform);
-    if (existing) {
-      await base44.entities.MarketplaceAccount.update(existing.id, { enabled_for_distribution: enabled });
-    } else {
-      await base44.entities.MarketplaceAccount.create({
-        user_id: user.id,
-        platform,
-        enabled_for_distribution: enabled,
-        is_connected: false,
-        oauth_status: 'not_connected',
-      });
+    try {
+      const user = await auth.me();
+      const existing = getAccountFor(platform);
+      if (existing) {
+        await marketplaceAccounts.update(existing.id, { enabled_for_distribution: enabled });
+      } else {
+        await marketplaceAccounts.create({
+          user_id: user.id,
+          platform,
+          enabled_for_distribution: enabled,
+          is_connected: false,
+          oauth_status: 'not_connected',
+        });
+      }
+      toast.success(`${platform} ${enabled ? 'enabled' : 'disabled'} for distribution`);
+      await loadAccounts();
+    } catch {
+      toast.error('Failed to update platform');
     }
-    toast.success(`${platform} ${enabled ? 'enabled' : 'disabled'} for distribution`);
-    await loadAccounts();
   };
 
   const handleDisconnect = async (platform) => {
-    const existing = getAccountFor(platform);
-    if (!existing) return;
-    await base44.entities.MarketplaceAccount.update(existing.id, { is_connected: false, oauth_status: 'not_connected', access_token_encrypted: '', refresh_token_encrypted: '' });
-    toast.success(`Disconnected from ${platform}`);
-    await loadAccounts();
+    try {
+      const existing = getAccountFor(platform);
+      if (!existing) return;
+      await marketplaceAccounts.update(existing.id, { is_connected: false, oauth_status: 'not_connected', access_token_encrypted: '', refresh_token_encrypted: '' });
+      toast.success(`Disconnected from ${platform}`);
+      await loadAccounts();
+    } catch {
+      toast.error('Failed to disconnect');
+    }
   };
 
   const directPlatforms = ALL_PLATFORMS.filter(p => p.mode === 'direct');

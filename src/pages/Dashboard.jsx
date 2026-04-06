@@ -1,8 +1,8 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
-import { FileText, Package, Tag, DollarSign, Sparkles, CheckCircle, TrendingUp, Zap, Settings } from 'lucide-react';
+import { auth, items, sales, listingDrafts } from '@/lib/supabase';
+import { FileText, Package, Tag, DollarSign, TrendingUp, Zap, Settings } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
   const content = (
@@ -21,32 +21,32 @@ function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
 }
 
 export default function Dashboard() {
-  const { data: items = [], isLoading } = useQuery({
+  const { data: allItems = [], isLoading } = useQuery({
     queryKey: ['dashboard-items'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      return base44.entities.Item.filter({ user_id: user.id }, '-updated_at', 500);
+      const user = await auth.me();
+      return items.getAll({ filters: { user_id: user.id }, orderBy: '-updated_at', limit: 500 });
     }
   });
 
   const { data: drafts = [] } = useQuery({
     queryKey: ['dashboard-drafts'],
-    queryFn: () => base44.entities.ListingDraft.list('-updated_date', 500)
+    queryFn: () => listingDrafts.getAll({ orderBy: '-updated_at', limit: 500 })
   });
 
-  const { data: sales = [] } = useQuery({
+  const { data: allSales = [] } = useQuery({
     queryKey: ['dashboard-sales'],
-    queryFn: () => base44.entities.Sale.list('-sold_date', 200)
+    queryFn: () => sales.getAll({ orderBy: '-sold_date', limit: 200 })
   });
 
   const draftItemIds = new Set(drafts.map(d => d.item_id));
   const draftCount = draftItemIds.size;
-  const listedCount = items.filter(i => i.status === 'listed').length;
-  const soldCount = sales.length;
+  const listedCount = allItems.filter(i => i.status === 'listed').length;
+  const soldCount = allSales.length;
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const recentSales = sales.filter(s => s.sold_date && new Date(s.sold_date) >= sevenDaysAgo);
+  const recentSales = allSales.filter(s => s.sold_date && new Date(s.sold_date) >= sevenDaysAgo);
   const recentProfit = recentSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
 
   const greeting = (() => {
@@ -69,7 +69,7 @@ export default function Dashboard() {
           </Link>
         </div>
         {!isLoading && (
-          <p className="text-slate-400 text-sm mt-1">{items.length} items in inventory</p>
+          <p className="text-slate-400 text-sm mt-1">{allItems.length} items in inventory</p>
         )}
         <Link
           to="/QuikEval"
@@ -81,7 +81,6 @@ export default function Dashboard() {
       </div>
 
       <div className="px-4 pt-4 space-y-5">
-       {/* Listing workflow */}
        <div>
          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Listing Workflow</p>
          <div className="grid grid-cols-3 gap-3">
@@ -109,7 +108,6 @@ export default function Dashboard() {
          </div>
        </div>
 
-        {/* Profit highlight */}
         <div className={`rounded-xl p-4 shadow-sm ${recentProfit >= 0 ? 'bg-emerald-600' : 'bg-red-600'} text-white`}>
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="w-4 h-4" />

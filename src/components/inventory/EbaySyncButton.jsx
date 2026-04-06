@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import supabase from '@/lib/supabase';
 import { toast } from 'sonner';
 
 export default function EbaySyncButton({ onSynced }) {
@@ -10,12 +10,12 @@ export default function EbaySyncButton({ onSynced }) {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const res = await base44.functions.invoke('syncEbayListings', {});
-      toast.success(res.data?.message || 'eBay listings synced');
+      const { data, error } = await supabase.functions.invoke('syncEbayListings', { body: {} });
+      if (error) throw error;
+      toast.success(data?.message || 'eBay listings synced');
       onSynced?.();
     } catch (err) {
-      const msg = err?.response?.data?.error || 'eBay sync failed';
-      toast.error(msg);
+      toast.error(err?.message || 'eBay sync failed');
     } finally {
       setSyncing(false);
     }

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Share2, CheckCircle, AlertCircle, Clock, ExternalLink, Copy, ChevronDown, ChevronUp, Zap, Hand } from 'lucide-react';
 import ImageUploadZone from '@/components/common/ImageUploadZone';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { items, marketplaceListings, marketplaceActions } from '@/lib/supabase';
+import supabase from '@/lib/supabase';
 import { toast } from 'sonner';
 
 const PLATFORMS = [
@@ -40,10 +41,7 @@ function PlatformCard({ platform, listing, onPrepareDraft, onMarkPosted, prepari
   const modeCfg = MODE_BADGE[platform.mode] || MODE_BADGE.assisted;
   const StatusIcon = cfg.icon;
 
-  const copy = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied!');
-  };
+  const copy = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -58,32 +56,18 @@ function PlatformCard({ platform, listing, onPrepareDraft, onMarkPosted, prepari
             <span>{cfg.label}</span>
           </div>
         </div>
-
         <div className="flex gap-2 shrink-0">
           {platform.mode === 'direct_placeholder' ? (
             <Button size="sm" variant="outline" disabled className="h-8 text-xs opacity-50">Soon</Button>
           ) : status === 'not_listed' ? (
-            <Button
-              size="sm"
-              onClick={() => onPrepareDraft(platform.key)}
-              disabled={preparing === platform.key}
-              className="h-8 text-xs bg-slate-900 hover:bg-slate-800 text-white"
-            >
-              {preparing === platform.key ? (
-                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <><Hand className="w-3 h-3 mr-1" />Prepare</>
-              )}
+            <Button size="sm" onClick={() => onPrepareDraft(platform.key)} disabled={preparing === platform.key} className="h-8 text-xs bg-slate-900 hover:bg-slate-800 text-white">
+              {preparing === platform.key ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Hand className="w-3 h-3 mr-1" />Prepare</>}
             </Button>
           ) : status === 'draft_prepared' ? (
-            <Button size="sm" onClick={() => setExpanded(!expanded)} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
-              Open Draft
-            </Button>
+            <Button size="sm" onClick={() => setExpanded(!expanded)} className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">Open Draft</Button>
           ) : status === 'listed' ? (
             <a href={listing?.external_listing_url || platform.url} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="outline" className="h-8 text-xs">
-                <ExternalLink className="w-3 h-3 mr-1" />View
-              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-xs"><ExternalLink className="w-3 h-3 mr-1" />View</Button>
             </a>
           ) : null}
         </div>
@@ -94,40 +78,30 @@ function PlatformCard({ platform, listing, onPrepareDraft, onMarkPosted, prepari
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-slate-500 uppercase">Title</span>
-              <button onClick={() => copy(listing.platform_title)} className="text-xs text-blue-600 flex items-center gap-1">
-                <Copy className="w-3 h-3" />Copy
-              </button>
+              <button onClick={() => copy(listing.platform_title)} className="text-xs text-blue-600 flex items-center gap-1"><Copy className="w-3 h-3" />Copy</button>
             </div>
             <p className="text-sm text-slate-800 bg-white rounded-lg p-2 border border-slate-200">{listing.platform_title}</p>
           </div>
-
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-semibold text-slate-500 uppercase">Description</span>
-              <button onClick={() => copy(listing.platform_description)} className="text-xs text-blue-600 flex items-center gap-1">
-                <Copy className="w-3 h-3" />Copy
-              </button>
+              <button onClick={() => copy(listing.platform_description)} className="text-xs text-blue-600 flex items-center gap-1"><Copy className="w-3 h-3" />Copy</button>
             </div>
             <p className="text-sm text-slate-800 bg-white rounded-lg p-2 border border-slate-200 whitespace-pre-line max-h-40 overflow-y-auto">{listing.platform_description}</p>
           </div>
-
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xs text-slate-500">Price</span>
               <p className="text-lg font-bold text-slate-900">${listing.platform_price?.toFixed(2)}</p>
             </div>
             <a href={platform.url} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="outline" className="h-9 text-xs">
-                <ExternalLink className="w-3 h-3 mr-1" />Open {platform.name}
-              </Button>
+              <Button size="sm" variant="outline" className="h-9 text-xs"><ExternalLink className="w-3 h-3 mr-1" />Open {platform.name}</Button>
             </a>
           </div>
-
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Item Photos</p>
             <ImageUploadZone item_id={listing.item_id} />
           </div>
-
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-xs text-amber-800">
             <p className="font-semibold mb-1">Steps to post:</p>
             <ol className="space-y-0.5 list-decimal list-inside">
@@ -138,13 +112,8 @@ function PlatformCard({ platform, listing, onPrepareDraft, onMarkPosted, prepari
               <li>Submit the listing</li>
             </ol>
           </div>
-
-          <Button
-            onClick={() => onMarkPosted(platform.key, listing.id)}
-            className="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Mark as Posted
+          <Button onClick={() => onMarkPosted(platform.key, listing.id)} className="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white text-sm">
+            <CheckCircle className="w-4 h-4 mr-2" />Mark as Posted
           </Button>
         </div>
       )}
@@ -171,8 +140,8 @@ export default function DistributeListing() {
   const loadData = async () => {
     setLoading(true);
     const [itemRes, listingsRes] = await Promise.all([
-      base44.entities.Item.filter({ id: item_id }),
-      base44.entities.MarketplaceListing.filter({ item_id }),
+      items.getAll({ filters: { id: item_id } }),
+      marketplaceListings.getAll({ filters: { item_id } }),
     ]);
     setItem(itemRes[0] || null);
     setListings(listingsRes);
@@ -184,10 +153,11 @@ export default function DistributeListing() {
   const handlePrepareDraft = async (platform) => {
     setPreparing(platform);
     try {
-      await base44.functions.invoke('buildPlatformDrafts', { item_id, platforms: [platform] });
+      const { error } = await supabase.functions.invoke('buildPlatformDrafts', { body: { item_id, platforms: [platform] } });
+      if (error) throw error;
       toast.success(`Draft prepared for ${platform}!`);
       await loadData();
-    } catch (e) {
+    } catch {
       toast.error('Failed to prepare draft');
     } finally {
       setPreparing(null);
@@ -198,10 +168,11 @@ export default function DistributeListing() {
     setSendingAll(true);
     const assistedPlatforms = PLATFORMS.filter(p => p.mode === 'assisted').map(p => p.key);
     try {
-      await base44.functions.invoke('buildPlatformDrafts', { item_id, platforms: assistedPlatforms });
+      const { error } = await supabase.functions.invoke('buildPlatformDrafts', { body: { item_id, platforms: assistedPlatforms } });
+      if (error) throw error;
       toast.success('Drafts prepared for all platforms!');
       await loadData();
-    } catch (e) {
+    } catch {
       toast.error('Failed to prepare all drafts');
     } finally {
       setSendingAll(false);
@@ -209,11 +180,10 @@ export default function DistributeListing() {
   };
 
   const handleMarkPosted = async (platform, listingId) => {
-    await base44.entities.MarketplaceListing.update(listingId, { listing_status: 'listed' });
-    // Complete the action task
-    const actions = await base44.entities.MarketplaceAction.filter({ marketplace_listing_id: listingId, action_type: 'publish', action_status: 'pending' });
-    for (const a of actions) {
-      await base44.entities.MarketplaceAction.update(a.id, { action_status: 'completed', completed_at: new Date().toISOString() });
+    await marketplaceListings.update(listingId, { listing_status: 'listed' });
+    const pendingActions = await marketplaceActions.getAll({ filters: { marketplace_listing_id: listingId, action_type: 'publish', action_status: 'pending' } });
+    for (const a of pendingActions) {
+      await marketplaceActions.update(a.id, { action_status: 'completed', completed_at: new Date().toISOString() });
     }
     toast.success(`Marked as listed on ${platform}!`);
     await loadData();
@@ -256,35 +226,19 @@ export default function DistributeListing() {
       </div>
 
       <div className="p-4 space-y-3">
-        <Button
-          onClick={handleSendAll}
-          disabled={sendingAll}
-          className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
-        >
+        <Button onClick={handleSendAll} disabled={sendingAll} className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
           {sendingAll ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Preparing all drafts...
-            </div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Preparing all drafts...</div>
           ) : (
             <><Zap className="w-4 h-4 mr-2" />Send to All Platforms</>
           )}
         </Button>
-
         <div className="text-xs text-slate-400 text-center px-4">
           <span className="font-medium text-emerald-600">Direct</span> = auto-posted · <span className="font-medium text-blue-600">Assisted</span> = FlipQuik prepares, you finish posting
         </div>
-
         <div className="space-y-2">
           {PLATFORMS.map(platform => (
-            <PlatformCard
-              key={platform.key}
-              platform={platform}
-              listing={getListingFor(platform.key)}
-              onPrepareDraft={handlePrepareDraft}
-              onMarkPosted={handleMarkPosted}
-              preparing={preparing}
-            />
+            <PlatformCard key={platform.key} platform={platform} listing={getListingFor(platform.key)} onPrepareDraft={handlePrepareDraft} onMarkPosted={handleMarkPosted} preparing={preparing} />
           ))}
         </div>
       </div>

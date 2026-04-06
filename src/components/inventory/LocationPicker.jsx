@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { auth, inventoryLocations, itemStorageAssignments, items } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { MapPin, Plus, Check, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,38 +16,32 @@ export default function LocationPicker({ item, currentLocation, onUpdate }) {
   const { data: locations = [], refetch: refetchLocations } = useQuery({
     queryKey: ['inventory-locations'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      return base44.entities.InventoryLocation.filter({ user_id: user.id }, 'location_name', 100);
+      const user = await auth.me();
+      return inventoryLocations.getAll({ filters: { user_id: user.id }, orderBy: 'location_name' });
     }
   });
 
   const handleAssign = async (location) => {
     setAssigning(true);
     try {
-      // Deactivate old assignment
-      const existing = await base44.entities.ItemStorageAssignment.filter({ item_id: item.id, active: true });
+      const existing = await itemStorageAssignments.getAll({ filters: { item_id: item.id, active: true } });
       await Promise.all(existing.map(a =>
-        base44.entities.ItemStorageAssignment.update(a.id, { active: false, removed_at: new Date().toISOString().split('T')[0] })
+        itemStorageAssignments.update(a.id, { active: false, removed_at: new Date().toISOString().split('T')[0] })
       ));
 
-      // Create new assignment
-      await base44.entities.ItemStorageAssignment.create({
+      await itemStorageAssignments.create({
         item_id: item.id,
         location_id: location.id,
         assigned_at: new Date().toISOString().split('T')[0],
         active: true
       });
 
-      // Update item's location label for fast rendering
-      await base44.entities.Item.update(item.id, {
-        current_location_label: location.location_name,
-        updated_at: new Date().toISOString()
-      });
+      await items.update(item.id, { current_location_label: location.location_name });
 
       toast.success(`Assigned to ${location.location_name}`);
       setOpen(false);
       onUpdate();
-    } catch (e) {
+    } catch {
       toast.error('Failed to assign location');
     } finally {
       setAssigning(false);
@@ -58,8 +52,8 @@ export default function LocationPicker({ item, currentLocation, onUpdate }) {
     if (!newLabel.trim()) return;
     setCreating(true);
     try {
-      const user = await base44.auth.me();
-      const location = await base44.entities.InventoryLocation.create({
+      const user = await auth.me();
+      const location = await inventoryLocations.create({
         user_id: user.id,
         location_name: newLabel.trim(),
         location_type: newType
@@ -67,7 +61,7 @@ export default function LocationPicker({ item, currentLocation, onUpdate }) {
       await refetchLocations();
       await handleAssign(location);
       setNewLabel('');
-    } catch (e) {
+    } catch {
       toast.error('Failed to create location');
     } finally {
       setCreating(false);

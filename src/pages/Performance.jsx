@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { auth, items, sales } from '@/lib/supabase';
 
 function MetricCard({ icon: Icon, label, value, sub, color = 'text-slate-900' }) {
   return (
@@ -26,22 +26,11 @@ function MetricCard({ icon: Icon, label, value, sub, color = 'text-slate-900' })
 
 function getDateRange(range, customStart, customEnd) {
   const now = new Date();
-  if (range === '30d') {
-    const start = new Date(now); start.setDate(now.getDate() - 30);
-    return { start, end: now };
-  }
-  if (range === '3m') {
-    const start = new Date(now); start.setMonth(now.getMonth() - 3);
-    return { start, end: now };
-  }
-  if (range === '1y') {
-    const start = new Date(now); start.setFullYear(now.getFullYear() - 1);
-    return { start, end: now };
-  }
-  if (range === 'custom' && customStart && customEnd) {
-    return { start: new Date(customStart), end: new Date(customEnd) };
-  }
-  return null; // all time
+  if (range === '30d') { const start = new Date(now); start.setDate(now.getDate() - 30); return { start, end: now }; }
+  if (range === '3m') { const start = new Date(now); start.setMonth(now.getMonth() - 3); return { start, end: now }; }
+  if (range === '1y') { const start = new Date(now); start.setFullYear(now.getFullYear() - 1); return { start, end: now }; }
+  if (range === 'custom' && customStart && customEnd) return { start: new Date(customStart), end: new Date(customEnd) };
+  return null;
 }
 
 export default function Performance() {
@@ -53,27 +42,25 @@ export default function Performance() {
 
   const dateRange = getDateRange(range, customStart, customEnd);
 
-  const { data: items = [], isLoading: itemsLoading } = useQuery({
+  const { data: allItems = [], isLoading: itemsLoading } = useQuery({
     queryKey: ['perf-items'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      return base44.entities.Item.filter({ user_id: user.id }, '-created_date', 500);
+      const user = await auth.me();
+      return items.getAll({ filters: { user_id: user.id }, orderBy: '-created_at', limit: 500 });
     }
   });
 
-  const { data: sales = [], isLoading: salesLoading } = useQuery({
+  const { data: allSales = [], isLoading: salesLoading } = useQuery({
     queryKey: ['perf-sales'],
-    queryFn: () => base44.entities.Sale.list('-sold_date', 500)
+    queryFn: () => sales.getAll({ orderBy: '-sold_date', limit: 500 })
   });
 
   const isLoading = itemsLoading || salesLoading;
+  const itemMap = Object.fromEntries(allItems.map(i => [i.id, i]));
+  const allPlatforms = [...new Set(allSales.map(s => s.platform).filter(Boolean))];
+  const allCategories = [...new Set(allItems.map(i => i.category).filter(Boolean))];
 
-  const itemMap = Object.fromEntries(items.map(i => [i.id, i]));
-  const allPlatforms = [...new Set(sales.map(s => s.platform).filter(Boolean))];
-  const allCategories = [...new Set(items.map(i => i.category).filter(Boolean))];
-
-  // Filter sales by date range + platform + category
-  const filteredSales = sales.filter(s => {
+  const filteredSales = allSales.filter(s => {
     if (dateRange) {
       if (!s.sold_date) return false;
       const d = new Date(s.sold_date);
@@ -87,16 +74,12 @@ export default function Performance() {
     return true;
   });
 
-  // Active items (investment = all active, not date-filtered)
-  const activeItems = items.filter(i => i.status !== 'archived');
+  const activeItems = allItems.filter(i => i.status !== 'archived');
   const totalInvestment = activeItems.reduce((sum, i) => sum + (i.purchase_price || 0), 0);
-
-  // From sales: revenue, fees, shipping, net profit
   const totalRevenue = filteredSales.reduce((sum, s) => sum + (s.sold_price || 0), 0);
   const totalFees = filteredSales.reduce((sum, s) => sum + (s.fees || 0), 0);
   const totalShipping = filteredSales.reduce((sum, s) => sum + (s.shipping_cost || 0), 0);
 
-  // Net profit: use stored net_profit if available, else calculate
   const totalNetProfit = filteredSales.reduce((sum, s) => {
     if (s.net_profit != null) return sum + s.net_profit;
     const item = itemMap[s.item_id];
@@ -104,20 +87,13 @@ export default function Performance() {
     return sum + (s.sold_price || 0) - cost - (s.fees || 0) - (s.shipping_cost || 0);
   }, 0);
 
-  // Total cost of sold items
   const totalCostOfSoldItems = filteredSales.reduce((sum, s) => {
     const item = itemMap[s.item_id];
     return sum + (item?.purchase_price || 0);
   }, 0);
 
-  const roi = totalCostOfSoldItems > 0
-    ? ((totalNetProfit / totalCostOfSoldItems) * 100).toFixed(1)
-    : null;
-
-  const avgProfitPerSale = filteredSales.length > 0
-    ? (totalNetProfit / filteredSales.length).toFixed(2)
-    : 0;
-
+  const roi = totalCostOfSoldItems > 0 ? ((totalNetProfit / totalCostOfSoldItems) * 100).toFixed(1) : null;
+  const avgProfitPerSale = filteredSales.length > 0 ? (totalNetProfit / filteredSales.length).toFixed(2) : 0;
   const fmt = (n) => `$${Math.abs(n).toFixed(2)}`;
 
   return (
@@ -130,16 +106,13 @@ export default function Performance() {
         <p className="text-slate-400 text-sm mt-1">Profit, investment & ROI overview</p>
       </div>
 
-      {/* Time Frame Selector */}
       <div className="px-4 py-3 bg-white border-b border-slate-100 space-y-2">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-slate-400" />
           <span className="text-sm text-slate-600 font-medium">Time Frame</span>
         </div>
         <Select value={range} onValueChange={setRange}>
-          <SelectTrigger className="h-9 text-sm">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Time</SelectItem>
             <SelectItem value="30d">Last 30 Days</SelectItem>
@@ -160,21 +133,16 @@ export default function Performance() {
             </div>
           </div>
         )}
-        {/* Platform & Category filters */}
         <div className="grid grid-cols-2 gap-2">
           <Select value={filterPlatform} onValueChange={setFilterPlatform}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Platforms" />
-            </SelectTrigger>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="All Platforms" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Platforms</SelectItem>
               {allPlatforms.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="h-9 text-sm">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="All Categories" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -190,34 +158,11 @@ export default function Performance() {
           </div>
         ) : (
           <>
-            <MetricCard
-              icon={DollarSign}
-              label="Net Profit"
-              value={`${totalNetProfit < 0 ? '-' : '+'}${fmt(totalNetProfit)}`}
-              sub={`From ${filteredSales.length} sale${filteredSales.length !== 1 ? 's' : ''}`}
-              color={totalNetProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}
-            />
-            <MetricCard
-              icon={ShoppingBag}
-              label="Total Investment"
-              value={fmt(totalInvestment)}
-              sub={`Across ${activeItems.length} active item${activeItems.length !== 1 ? 's' : ''}`}
-            />
-            <MetricCard
-              icon={BarChart2}
-              label="Return on Investment (ROI)"
-              value={roi !== null ? `${roi}%` : 'N/A'}
-              sub="Based on cost of sold items"
-              color={roi !== null && parseFloat(roi) >= 0 ? 'text-emerald-600' : 'text-red-500'}
-            />
-            <MetricCard
-              icon={TrendingUp}
-              label="Avg Profit per Sale"
-              value={`${parseFloat(avgProfitPerSale) >= 0 ? '+' : '-'}$${Math.abs(avgProfitPerSale)}`}
-              color={parseFloat(avgProfitPerSale) >= 0 ? 'text-emerald-600' : 'text-red-500'}
-            />
+            <MetricCard icon={DollarSign} label="Net Profit" value={`${totalNetProfit < 0 ? '-' : '+'}${fmt(totalNetProfit)}`} sub={`From ${filteredSales.length} sale${filteredSales.length !== 1 ? 's' : ''}`} color={totalNetProfit >= 0 ? 'text-emerald-600' : 'text-red-500'} />
+            <MetricCard icon={ShoppingBag} label="Total Investment" value={fmt(totalInvestment)} sub={`Across ${activeItems.length} active item${activeItems.length !== 1 ? 's' : ''}`} />
+            <MetricCard icon={BarChart2} label="Return on Investment (ROI)" value={roi !== null ? `${roi}%` : 'N/A'} sub="Based on cost of sold items" color={roi !== null && parseFloat(roi) >= 0 ? 'text-emerald-600' : 'text-red-500'} />
+            <MetricCard icon={TrendingUp} label="Avg Profit per Sale" value={`${parseFloat(avgProfitPerSale) >= 0 ? '+' : '-'}$${Math.abs(avgProfitPerSale)}`} color={parseFloat(avgProfitPerSale) >= 0 ? 'text-emerald-600' : 'text-red-500'} />
 
-            {/* Sales Trend */}
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Sales Trend</p>
               <div className="text-xs text-slate-400 flex gap-4 mb-2">
@@ -227,7 +172,6 @@ export default function Performance() {
               <SalesTrendChart sales={filteredSales} />
             </div>
 
-            {/* Breakdown */}
             <div className="bg-white rounded-xl p-4 shadow-sm mt-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Sales Breakdown</p>
               <div className="space-y-2">
@@ -251,16 +195,14 @@ export default function Performance() {
               </div>
             </div>
 
-            {/* Platform & Category breakdown */}
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">By Platform & Category</p>
-              <PlatformBreakdown sales={filteredSales} items={items} />
+              <PlatformBreakdown sales={filteredSales} items={allItems} />
             </div>
 
-            {/* Top Items */}
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Top Items by Profit</p>
-              <TopItems sales={filteredSales} items={items} />
+              <TopItems sales={filteredSales} items={allItems} />
             </div>
           </>
         )}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Plus, X, Star, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { storage } from '@/lib/supabase';
+import supabase from '@/lib/supabase';
 import { toast } from 'sonner';
 import { compressImage } from '@/utils/imageCompression';
 
@@ -32,7 +33,6 @@ const CapturePhotoManager = forwardRef(function CapturePhotoManager(
   const [photos, setPhotos] = useState(() => normalize(initialPhotos));
   const [uploading, setUploading] = useState(false);
 
-  // Sync when initialPhotos are provided (e.g. from QuikEval navigation)
   useEffect(() => {
     if (initialPhotos && initialPhotos.length > 0) {
       setPhotos(normalize(initialPhotos));
@@ -54,10 +54,13 @@ const CapturePhotoManager = forwardRef(function CapturePhotoManager(
     if (!files.length) return;
     setUploading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || 'anonymous';
+
       const newPhotos = await Promise.all(
         files.map(async (file) => {
           const compressed = await compressImage(file);
-          const { file_url } = await base44.integrations.Core.UploadFile({ file: compressed });
+          const file_url = await storage.uploadPhoto(compressed, userId);
           return {
             originalFile: file,
             compressedUrl: file_url,
@@ -67,7 +70,6 @@ const CapturePhotoManager = forwardRef(function CapturePhotoManager(
         })
       );
       const merged = [...photos, ...newPhotos];
-      // Ensure one cover is always set
       if (!merged.some((p) => p.isCover) && merged.length > 0) {
         merged[0] = { ...merged[0], isCover: true };
       }
@@ -126,7 +128,6 @@ const CapturePhotoManager = forwardRef(function CapturePhotoManager(
           </div>
         ))}
 
-        {/* Add photos button */}
         <label className="w-20 h-20 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors shrink-0">
           {uploading ? (
             <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />

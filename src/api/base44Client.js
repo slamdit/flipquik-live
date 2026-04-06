@@ -1,14 +1,7 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
-
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
-
-//Create a client with authentication required
-export const base44 = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  requiresAuth: false,
-  appBaseUrl
-});
+// Stub — Base44 SDK removed. Use src/lib/supabase.js instead.
+export const base44 = {
+  auth: { me: async () => { throw new Error('base44 removed — use supabase auth'); } },
+  entities: new Proxy({}, { get: () => new Proxy({}, { get: () => async () => { throw new Error('base44 removed'); } }) }),
+  integrations: { Core: { UploadFile: async () => { throw new Error('base44 removed'); }, InvokeLLM: async () => { throw new Error('base44 removed'); } } },
+  functions: { invoke: async () => { throw new Error('base44 removed'); } },
+};

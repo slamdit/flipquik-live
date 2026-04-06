@@ -96,16 +96,19 @@ const db = {
 // Usage: import { items } from '@/lib/supabase'
 //        const myItems = await items.getAll({ filters: { user_id } })
 // ─────────────────────────────────────────────
-export const items            = db.query('items');
-export const itemPhotos       = db.query('item_photos');
-export const sales            = db.query('sales');
-export const actions          = db.query('actions');
-export const marketplaceListings = db.query('marketplace_listings');
-export const marketplaceAccounts = db.query('marketplace_accounts');
-export const platformTemplates   = db.query('platform_templates');
-export const mileageTrips     = db.query('mileage_trips');
-export const expenses         = db.query('expenses');
-export const profiles         = db.query('profiles');
+export const items                  = db.query('items');
+export const itemPhotos             = db.query('item_photos');
+export const sales                  = db.query('sales');
+export const listingDrafts          = db.query('listing_drafts');
+export const marketplaceActions     = db.query('marketplace_actions');
+export const marketplaceListings    = db.query('marketplace_listings');
+export const marketplaceAccounts    = db.query('marketplace_accounts');
+export const platformTemplates      = db.query('platform_templates');
+export const inventoryLocations     = db.query('inventory_locations');
+export const itemStorageAssignments = db.query('item_storage_assignments');
+export const mileageTrips           = db.query('mileage_trips');
+export const expenses               = db.query('expenses');
+export const profiles               = db.query('profiles');
 
 // ─────────────────────────────────────────────
 // STORAGE HELPERS (replaces base44 UploadFile)
@@ -143,7 +146,7 @@ export const storage = {
 // ─────────────────────────────────────────────
 export const ai = {
   invoke: async (prompt, options = {}) => {
-    const { data, error } = await supabase.functions.invoke('ai-invoke', {
+    const { data, error } = await supabase.functions.invoke('quikeval', {
       body: { prompt, ...options }
     });
     if (error) throw error;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckSquare, AlertCircle, Clock, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { auth, items, marketplaceActions, marketplaceListings } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -18,12 +18,12 @@ const PRIORITY_COLORS = {
 };
 
 const GROUP_CONFIG = {
-  publish:          { label: 'Needs Posting',  icon: CheckSquare, color: 'text-blue-600' },
-  update:           { label: 'Needs Update',   icon: RefreshCw,   color: 'text-amber-600' },
-  delist:           { label: 'Needs Delist',   icon: Trash2,      color: 'text-red-600' },
-  confirm_posted:   { label: 'Confirm Posted', icon: CheckSquare, color: 'text-emerald-600' },
+  publish:          { label: 'Needs Posting',    icon: CheckSquare, color: 'text-blue-600' },
+  update:           { label: 'Needs Update',     icon: RefreshCw,   color: 'text-amber-600' },
+  delist:           { label: 'Needs Delist',     icon: Trash2,      color: 'text-red-600' },
+  confirm_posted:   { label: 'Confirm Posted',   icon: CheckSquare, color: 'text-emerald-600' },
   confirm_delisted: { label: 'Confirm Delisted', icon: CheckSquare, color: 'text-slate-500' },
-  resolve_error:    { label: 'Errors',         icon: AlertCircle, color: 'text-red-600' },
+  resolve_error:    { label: 'Errors',           icon: AlertCircle, color: 'text-red-600' },
 };
 
 function ActionCard({ action, item, onComplete, onSkip }) {
@@ -46,19 +46,15 @@ function ActionCard({ action, item, onComplete, onSkip }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-sm text-slate-900 truncate">{item?.item_name || 'Unknown Item'}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${priorityCfg}`}>
-                {action.priority}
-              </span>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${priorityCfg}`}>{action.priority}</span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">{PLATFORM_LABELS[action.platform] || action.platform}</p>
             <p className="text-sm font-medium text-slate-800 mt-1">{action.action_title}</p>
           </div>
         </div>
-
         {action.action_instructions && (
           <p className="text-xs text-slate-500 mt-2 bg-slate-50 rounded-lg p-2 leading-relaxed">{action.action_instructions}</p>
         )}
-
         <div className="flex gap-2 mt-3">
           {action.deep_link_url && (
             <a href={action.deep_link_url} target="_blank" rel="noopener noreferrer" className="flex-1">
@@ -67,17 +63,10 @@ function ActionCard({ action, item, onComplete, onSkip }) {
               </Button>
             </a>
           )}
-          <Button
-            size="sm"
-            onClick={handleComplete}
-            disabled={completing}
-            className="flex-1 h-9 text-xs bg-slate-900 hover:bg-slate-800 text-white"
-          >
+          <Button size="sm" onClick={handleComplete} disabled={completing} className="flex-1 h-9 text-xs bg-slate-900 hover:bg-slate-800 text-white">
             {completing ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Mark Complete'}
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => onSkip(action)} className="h-9 text-xs text-slate-400 shrink-0">
-            Skip
-          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onSkip(action)} className="h-9 text-xs text-slate-400 shrink-0">Skip</Button>
         </div>
       </div>
     </div>
@@ -90,20 +79,20 @@ export default function ActionQueue() {
   const { data: actions = [], isLoading: actionsLoading } = useQuery({
     queryKey: ['action-queue'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      return base44.entities.MarketplaceAction.filter({ user_id: user.id, action_status: 'pending' }, '-created_date', 100);
+      const user = await auth.me();
+      return marketplaceActions.getAll({ filters: { user_id: user.id, action_status: 'pending' }, orderBy: '-created_at', limit: 100 });
     },
   });
 
-  const { data: items = [] } = useQuery({
+  const { data: allItems = [] } = useQuery({
     queryKey: ['action-queue-items'],
     queryFn: async () => {
-      const user = await base44.auth.me();
-      return base44.entities.Item.filter({ user_id: user.id }, '-created_date', 200);
+      const user = await auth.me();
+      return items.getAll({ filters: { user_id: user.id }, orderBy: '-created_at', limit: 200 });
     },
   });
 
-  const itemMap = Object.fromEntries(items.map(i => [i.id, i]));
+  const itemMap = Object.fromEntries(allItems.map(i => [i.id, i]));
 
   const grouped = Object.entries(GROUP_CONFIG).reduce((acc, [type]) => {
     acc[type] = actions.filter(a => a.action_type === type);
@@ -111,24 +100,22 @@ export default function ActionQueue() {
   }, {});
 
   const handleComplete = async (action) => {
-    await base44.entities.MarketplaceAction.update(action.id, {
+    await marketplaceActions.update(action.id, {
       action_status: 'completed',
       completed_at: new Date().toISOString(),
     });
-    // If it was a delist action, update the listing
     if (action.action_type === 'delist' && action.marketplace_listing_id) {
-      await base44.entities.MarketplaceListing.update(action.marketplace_listing_id, { listing_status: 'delisted' });
+      await marketplaceListings.update(action.marketplace_listing_id, { listing_status: 'delisted' });
     }
-    // If it was a publish/confirm_posted action, update listing to listed
     if ((action.action_type === 'publish' || action.action_type === 'confirm_posted') && action.marketplace_listing_id) {
-      await base44.entities.MarketplaceListing.update(action.marketplace_listing_id, { listing_status: 'listed' });
+      await marketplaceListings.update(action.marketplace_listing_id, { listing_status: 'listed' });
     }
     toast.success('Action completed!');
     queryClient.invalidateQueries(['action-queue']);
   };
 
   const handleSkip = async (action) => {
-    await base44.entities.MarketplaceAction.update(action.id, { action_status: 'skipped' });
+    await marketplaceActions.update(action.id, { action_status: 'skipped' });
     toast('Action skipped');
     queryClient.invalidateQueries(['action-queue']);
   };
@@ -176,13 +163,7 @@ export default function ActionQueue() {
                 </div>
                 <div className="space-y-2">
                   {group.map(action => (
-                    <ActionCard
-                      key={action.id}
-                      action={action}
-                      item={itemMap[action.item_id]}
-                      onComplete={handleComplete}
-                      onSkip={handleSkip}
-                    />
+                    <ActionCard key={action.id} action={action} item={itemMap[action.item_id]} onComplete={handleComplete} onSkip={handleSkip} />
                   ))}
                 </div>
               </div>

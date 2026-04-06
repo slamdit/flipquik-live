@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { sales, items } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +27,7 @@ export default function SaleModal({ item, onClose, onSuccess }) {
     try {
       const roi = purchasePrice > 0 ? Math.round((netProfit / purchasePrice) * 100 * 100) / 100 : null;
 
-      await base44.entities.Sale.create({
+      await sales.create({
         item_id: item.id,
         platform: platform.trim() || undefined,
         sold_price: soldPriceNum,
@@ -38,14 +38,11 @@ export default function SaleModal({ item, onClose, onSuccess }) {
         sold_date: new Date().toISOString().split('T')[0]
       });
 
-      await base44.entities.Item.update(item.id, {
-        status: 'sold',
-        updated_at: new Date().toISOString()
-      });
+      await items.update(item.id, { status: 'sold' });
 
       toast.success('Sale recorded!');
       onSuccess();
-    } catch (e) {
+    } catch {
       toast.error('Failed to record sale');
     } finally {
       setSaving(false);
@@ -71,51 +68,19 @@ export default function SaleModal({ item, onClose, onSuccess }) {
         <div className="space-y-3">
           <div>
             <Label htmlFor="sold-price">Sale Price *</Label>
-            <Input
-              id="sold-price"
-              type="number"
-              step="0.01"
-              value={soldPrice}
-              onChange={e => setSoldPrice(e.target.value)}
-              placeholder="0.00"
-              className="h-11 mt-1"
-              autoFocus
-            />
+            <Input id="sold-price" type="number" step="0.01" value={soldPrice} onChange={e => setSoldPrice(e.target.value)} placeholder="0.00" className="h-11 mt-1" autoFocus />
           </div>
-
           <div>
             <Label htmlFor="platform">Platform</Label>
-            <Input
-              id="platform"
-              value={platform}
-              onChange={e => setPlatform(e.target.value)}
-              placeholder="eBay, Poshmark, Mercari..."
-              className="h-11 mt-1"
-            />
+            <Input id="platform" value={platform} onChange={e => setPlatform(e.target.value)} placeholder="eBay, Poshmark, Mercari..." className="h-11 mt-1" />
           </div>
-
           <div>
             <Label htmlFor="fees">Fees (optional)</Label>
-            <Input
-              id="fees"
-              type="number"
-              step="0.01"
-              value={fees}
-              onChange={e => setFees(e.target.value)}
-              placeholder="0.00"
-              className="h-11 mt-1"
-            />
+            <Input id="fees" type="number" step="0.01" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" className="h-11 mt-1" />
           </div>
-
           <div>
             <Label htmlFor="sale-notes">Notes (optional)</Label>
-            <Input
-              id="sale-notes"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Buyer info, special details..."
-              className="h-11 mt-1"
-            />
+            <Input id="sale-notes" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Buyer info, special details..." className="h-11 mt-1" />
           </div>
         </div>
 
@@ -128,11 +93,7 @@ export default function SaleModal({ item, onClose, onSuccess }) {
 
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button
-            className="flex-1 bg-green-600 hover:bg-green-700"
-            onClick={handleSave}
-            disabled={saving}
-          >
+          <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleSave} disabled={saving}>
             {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Mark as Sold'}
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { items } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Tag, DollarSign, Archive } from 'lucide-react';
@@ -12,13 +12,10 @@ export default function ItemActions({ item, onUpdate }) {
   const handleMarkListed = async () => {
     setLoading(true);
     try {
-      await base44.entities.Item.update(item.id, {
-        status: 'listed',
-        updated_at: new Date().toISOString()
-      });
+      await items.update(item.id, { status: 'listed' });
       toast.success('Marked as listed');
       onUpdate();
-    } catch (e) {
+    } catch {
       toast.error('Failed to update');
     } finally {
       setLoading(false);
@@ -28,13 +25,10 @@ export default function ItemActions({ item, onUpdate }) {
   const handleArchive = async () => {
     setLoading(true);
     try {
-      await base44.entities.Item.update(item.id, {
-        status: 'archived',
-        updated_at: new Date().toISOString()
-      });
+      await items.update(item.id, { status: 'archived' });
       toast.success('Item archived');
       onUpdate();
-    } catch (e) {
+    } catch {
       toast.error('Failed to archive');
     } finally {
       setLoading(false);
