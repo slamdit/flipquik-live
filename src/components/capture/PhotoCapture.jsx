@@ -1,9 +1,51 @@
 import React, { useRef } from 'react';
 import { Camera, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
-import { compressImage } from '@/utils/imageCompression';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+
+// Compress image before upload (keeps file sizes small)
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX) { height = (height * MAX) / width; width = MAX; }
+        if (height > MAX) { width = (width * MAX) / height; height = MAX; }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(new File([blob], file.name, { type: 'image/jpeg' })), 'image/jpeg', 0.82);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Upload to Supabase Storage
+async function uploadToSupabase(file) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id || 'anonymous';
+  const ext = file.name.split('.').pop() || 'jpg';
+  const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from('item-photos')
+    .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+  if (error) throw error;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('item-photos')
+    .getPublicUrl(fileName);
+
+  return publicUrl;
+}
 
 export default function PhotoCapture({ photos, setPhotos, uploading, setUploading }) {
   const fileInputRef = useRef(null);
@@ -16,17 +58,31 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
     try {
       const newPhotos = await Promise.all(
         files.map(async (file) => {
-          const compressed = await compressImage(file);
-          const { file_url } = await base44.integrations.Core.UploadFile({ file: compressed });
-          return { originalFile: file, compressedUrl: file_url, displayUrl: file_url };
+          // Show preview immediately using local URL
+          const localUrl = URL.createObjectURL(file);
+
+          try {
+            // Compress then upload to Supabase
+            const compressed = await compressImage(file);
+            const uploadedUrl = await uploadToSupabase(compressed);
+            return { originalFile: file, compressedUrl: uploadedUrl, displayUrl: uploadedUrl };
+          } catch (uploadErr) {
+            // If upload fails, still show the photo locally so user doesn't lose it
+            console.warn('Upload failed, using local preview:', uploadErr);
+            return { originalFile: file, compressedUrl: localUrl, displayUrl: localUrl };
+          }
         })
       );
+
       setPhotos([...photos, ...newPhotos]);
-      toast.success(`${files.length} photo${files.length > 1 ? 's' : ''} uploaded`);
+      toast.success(`${files.length} photo${files.length > 1 ? 's' : ''} added`);
     } catch (error) {
-      toast.error('Failed to upload photos');
+      console.error('Photo capture error:', error);
+      toast.error('Failed to add photos. Please try again.');
     } finally {
       setUploading(false);
+      // Reset input so same file can be selected again
+      e.target.value = '';
     }
   };
 
@@ -34,7 +90,10 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  const getDisplayUrl = (photo) => (typeof photo === 'string' ? photo : photo.displayUrl);
+  const getDisplayUrl = (photo) => {
+    if (typeof photo === 'string') return photo;
+    return photo.displayUrl || photo.compressedUrl || '';
+  };
 
   return (
     <div className="space-y-3">
@@ -89,15 +148,9 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
         ) : (
           <>
             {photos.length === 0 ? (
-              <>
-                <Camera className="w-5 h-5 mr-2" />
-                Take Photos
-              </>
+              <><Camera className="w-5 h-5 mr-2" />Take Photos</>
             ) : (
-              <>
-                <ImageIcon className="w-5 h-5 mr-2" />
-                Add More Photos
-              </>
+              <><ImageIcon className="w-5 h-5 mr-2" />Add More Photos</>
             )}
           </>
         )}
