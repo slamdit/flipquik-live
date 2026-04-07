@@ -278,7 +278,7 @@ export default function FlipIt() {
             description: description.trim() || undefined,
             suggested_list_price: price ? parseFloat(price) : undefined,
             price_suggestion: price ? parseFloat(price) : undefined,
-            listing_status: status === 'listed' ? 'ready' : 'incomplete',
+            listing_status: status === 'listed' ? 'ready' : 'draft',
           });
         } catch (draftErr) {
           console.error('[FlipIt] listing_drafts create failed:', draftErr);
@@ -313,7 +313,7 @@ export default function FlipIt() {
   const handleClipIt = async () => {
     if (!validatePurchasePrice()) return;
     try {
-      await saveItem('draft');
+      await saveItem('clipped');
       toast.success('Clipped! Saved to My Items.');
       navigate('/');
     } catch (err) {
