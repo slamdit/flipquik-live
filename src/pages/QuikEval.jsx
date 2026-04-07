@@ -54,7 +54,7 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
       const { data: evalResult, error: fnError } = await supabase.functions.invoke('quikeval', {
         body: {
           prompt,
-          file_urls: photos.map(p => p.compressedUrl || p),
+          base64_images: photos.map(p => p.base64).filter(Boolean),
           response_json_schema: {
             type: 'object',
             properties: {

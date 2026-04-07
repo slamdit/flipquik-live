@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, response_json_schema } = await req.json();
+    const { prompt, base64_images, response_json_schema } = await req.json();
 
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY) {
@@ -24,7 +24,17 @@ serve(async (req) => {
       ? '\n\nRespond with valid JSON only. No markdown code fences, no extra text — just the raw JSON object.'
       : '';
 
-    const content = [{ type: 'text', text: prompt + schemaHint }];
+    // Build content: images first so Claude sees them before reading the prompt
+    const content: unknown[] = [];
+    if (Array.isArray(base64_images) && base64_images.length > 0) {
+      for (const b64 of base64_images) {
+        content.push({
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/jpeg', data: b64 },
+        });
+      }
+    }
+    content.push({ type: 'text', text: prompt + schemaHint });
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

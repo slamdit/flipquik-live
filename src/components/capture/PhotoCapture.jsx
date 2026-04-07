@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 // Compress image before upload (keeps file sizes small)
+// Returns { file, base64 } — base64 is the raw data (no data: prefix) for Claude vision
 async function compressImage(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -19,7 +20,13 @@ async function compressImage(file) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(new File([blob], file.name, { type: 'image/jpeg' })), 'image/jpeg', 0.82);
+        // Grab base64 while canvas is still in scope (sync, same quality settings)
+        const base64 = canvas.toDataURL('image/jpeg', 0.82).split(',')[1];
+        canvas.toBlob(
+          (blob) => resolve({ file: new File([blob], file.name, { type: 'image/jpeg' }), base64 }),
+          'image/jpeg',
+          0.82
+        );
       };
       img.src = e.target.result;
     };
@@ -61,15 +68,16 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
           // Show preview immediately using local URL
           const localUrl = URL.createObjectURL(file);
 
+          // Compress first (always needed for base64)
+          const compressed = await compressImage(file);
           try {
-            // Compress then upload to Supabase
-            const compressed = await compressImage(file);
-            const uploadedUrl = await uploadToSupabase(compressed);
-            return { originalFile: file, compressedUrl: uploadedUrl, displayUrl: uploadedUrl };
+            // Upload compressed file to Supabase
+            const uploadedUrl = await uploadToSupabase(compressed.file);
+            return { originalFile: file, compressedUrl: uploadedUrl, displayUrl: uploadedUrl, base64: compressed.base64 };
           } catch (uploadErr) {
             // If upload fails, still show the photo locally so user doesn't lose it
             console.warn('Upload failed, using local preview:', uploadErr);
-            return { originalFile: file, compressedUrl: localUrl, displayUrl: localUrl };
+            return { originalFile: file, compressedUrl: localUrl, displayUrl: localUrl, base64: compressed.base64 };
           }
         })
       );
