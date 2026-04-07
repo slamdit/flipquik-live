@@ -52,6 +52,9 @@ async function fetchItems(status) {
   if (status) q = q.eq('status', status);
 
   const { data, error } = await q;
+  console.log('[Inventory] user_id:', userId);
+  console.log('[Inventory] query error:', error);
+  console.log('[Inventory] raw data:', data);
   if (error) throw error;
   return data || [];
 }
