@@ -86,7 +86,8 @@ function applyFilters(items, { search, category, sortBy }) {
 
 // ── Item Card ────────────────────────────────────────────────────
 function ItemCard({ item, onEdit, onDelete }) {
-  const [deleting, setDeleting] = useState(false);
+  const [deleting,  setDeleting]  = useState(false);
+  const [flipping,  setFlipping]  = useState(false);
 
   const handleDelete = async (e) => {
     e.stopPropagation();
@@ -101,6 +102,25 @@ function ItemCard({ item, onEdit, onDelete }) {
       toast.error('Failed to delete item');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleMarkFlipped = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Mark "${itemName(item)}" as Flipped?`)) return;
+    setFlipping(true);
+    try {
+      const { error } = await supabase
+        .from('items')
+        .update({ status: 'flipped', updated_at: new Date().toISOString() })
+        .eq('id', item.id);
+      if (error) throw error;
+      toast.success('Marked as Flipped!');
+      onDelete(); // refetches
+    } catch {
+      toast.error('Failed to update status');
+    } finally {
+      setFlipping(false);
     }
   };
 
@@ -140,6 +160,20 @@ function ItemCard({ item, onEdit, onDelete }) {
           {cost  != null && <span className="text-xs text-slate-400">Cost ${cost.toFixed(2)}</span>}
           <span className="text-xs text-slate-300 ml-auto">{formatDate(item.created_date)}</span>
         </div>
+
+        {/* Mark as Flipped — only on listed items */}
+        {item.status === 'listed' && (
+          <button
+            onClick={handleMarkFlipped}
+            disabled={flipping}
+            className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+          >
+            {flipping
+              ? <div className="w-3 h-3 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+              : '✓ Mark as Flipped'
+            }
+          </button>
+        )}
       </div>
 
       {/* Delete */}
