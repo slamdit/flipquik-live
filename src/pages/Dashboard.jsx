@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { auth, items, sales, listingDrafts } from '@/lib/supabase';
+import { auth, items, sales } from '@/lib/supabase';
 import { FileText, Package, Tag, DollarSign, TrendingUp, Zap, Settings } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
@@ -29,18 +29,12 @@ export default function Dashboard() {
     }
   });
 
-  const { data: drafts = [] } = useQuery({
-    queryKey: ['dashboard-drafts'],
-    queryFn: () => listingDrafts.getAll({ orderBy: '-updated_at', limit: 500 })
-  });
-
   const { data: allSales = [] } = useQuery({
     queryKey: ['dashboard-sales'],
     queryFn: () => sales.getAll({ orderBy: '-sold_date', limit: 200 })
   });
 
-  const draftItemIds = new Set(drafts.map(d => d.item_id));
-  const draftCount = draftItemIds.size;
+  const clippedCount = allItems.filter(i => i.status === 'clipped').length;
   const listedCount = allItems.filter(i => i.status === 'listed').length;
   const soldCount = allSales.length;
 
@@ -86,9 +80,9 @@ export default function Dashboard() {
          <div className="grid grid-cols-3 gap-3">
            <StatCard
              icon={FileText}
-             label="Draft"
-             value={draftCount}
-             to="/Drafts"
+             label="Clipped"
+             value={clippedCount}
+             to="/Inventory"
              accent="bg-blue-50 text-blue-600"
            />
            <StatCard
