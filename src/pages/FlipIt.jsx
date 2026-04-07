@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { auth, items as itemsDb, itemPhotos as itemPhotosDb, supabase } from '@/lib/supabase';
+import { auth, items as itemsDb, itemPhotos as itemPhotosDb, listingDrafts as listingDraftsDb, supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 // ── Generate Listing Modal ──────────────────────────────────────
@@ -230,6 +230,7 @@ export default function FlipIt() {
       const primaryPhoto = photos[0];
       const primaryPhotoUrl = primaryPhoto?.compressedUrl || primaryPhoto?.displayUrl || null;
 
+      // Create the item — only columns confirmed to exist on the items table
       const item = await itemsDb.create({
         user_id: user.id,
         item_name: title.trim() || 'Untitled Item',
@@ -238,16 +239,32 @@ export default function FlipIt() {
         condition: condition.trim() || null,
         internal_notes: description.trim() || null,
         purchase_price: purchasePrice ? parseFloat(purchasePrice) : null,
-        suggested_list_price: price ? parseFloat(price) : null,
         status,
         primary_photo_url: primaryPhotoUrl,
         created_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
 
-      // Save photo records
+      // Save listing draft with title + description + suggested price
+      if (title.trim() || description.trim() || price) {
+        try {
+          await listingDraftsDb.create({
+            item_id: item.id,
+            title: title.trim() || null,
+            description: description.trim() || null,
+            suggested_list_price: price ? parseFloat(price) : null,
+            price_suggestion: price ? parseFloat(price) : null,
+            listing_status: status === 'listed' ? 'ready' : 'incomplete',
+          });
+        } catch (draftErr) {
+          console.error('[FlipIt] listing_drafts create failed:', draftErr);
+          // Non-blocking — item was saved, draft is best-effort
+        }
+      }
+
+      // Save photo records — non-blocking so a photo error doesn't roll back the item
       if (photos.length > 0) {
-        await Promise.all(
+        Promise.all(
           photos.map((p, i) => {
             const url = p.compressedUrl || p.displayUrl;
             if (!url) return Promise.resolve();
@@ -258,11 +275,12 @@ export default function FlipIt() {
               is_cover: i === 0,
             });
           })
-        );
+        ).catch(photoErr => console.error('[FlipIt] photo save failed:', photoErr));
       }
 
       return item;
     } catch (err) {
+      console.error('[FlipIt] saveItem failed:', err);
       throw err;
     } finally {
       setSaving(false);
@@ -407,8 +425,17 @@ export default function FlipIt() {
             variant="outline"
             className="h-14 text-base border-slate-300"
           >
-            <Bookmark className="w-5 h-5 mr-2" />
-            Clip It
+            {saving ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                Saving...
+              </div>
+            ) : (
+              <>
+                <Bookmark className="w-5 h-5 mr-2" />
+                Clip It
+              </>
+            )}
           </Button>
           <Button
             onClick={handleListIt}
