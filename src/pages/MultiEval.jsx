@@ -2,10 +2,32 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layers, Sparkles, X, Camera, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ai, storage } from '@/lib/supabase';
-import supabase from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import EvalResultCard from '@/components/multieval/EvalResultCard';
+
+// Compress and encode a File as base64 JPEG for Claude vision
+function fileToBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 1200;
+        let { width, height } = img;
+        if (width > MAX) { height = (height * MAX) / width; width = MAX; }
+        if (height > MAX) { width = (width * MAX) / height; height = MAX; }
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82).split(',')[1]);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function MultiEval() {
   const navigate = useNavigate();
@@ -27,45 +49,40 @@ export default function MultiEval() {
     if (photos.length === 0) { toast.error('Add at least one photo first'); return; }
     setEvaluating(true);
     try {
-      // Upload all photos to Supabase storage
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || 'anonymous';
-
-      const uploaded = await Promise.all(
-        photos.map(async (p) => {
-          const file_url = await storage.uploadPhoto(p.file, userId);
-          return { file_url, localUrl: p.url };
-        })
-      );
+      // Encode photos as base64 for Claude vision (no storage upload needed)
+      const base64_images = await Promise.all(photos.map(p => fileToBase64(p.file)));
 
       const prompt = `You are an expert resale buyer evaluating items for resale value.
-You are given ${uploaded.length} photo(s), each showing a different item.
+You are given ${photos.length} photo(s), each showing a different item.
 For EACH item/photo (in the same order as provided), identify what the item is and evaluate its resale potential.
 
 Return a JSON object with an "items" array containing evaluations in the same order as the photos.
 Be concise but accurate. Use real market data to estimate prices.`;
 
-      const aiResult = await ai.invoke(prompt, {
-        file_urls: uploaded.map(u => u.file_url),
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            items: {
-              type: 'array',
+      const { data, error } = await supabase.functions.invoke('quikeval', {
+        body: {
+          prompt,
+          base64_images,
+          response_json_schema: {
+            type: 'object',
+            properties: {
               items: {
-                type: 'object',
-                properties: {
-                  item_name:              { type: 'string' },
-                  brand:                  { type: 'string' },
-                  category:               { type: 'string' },
-                  condition:              { type: 'string' },
-                  retail_price:           { type: 'number' },
-                  resale_low:             { type: 'number' },
-                  resale_high:            { type: 'number' },
-                  suggested_resale_price: { type: 'number' },
-                  confidence:             { type: 'string' },
-                  things_to_consider:     { type: 'array', items: { type: 'string' } },
-                  notes:                  { type: 'string' },
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    item_name:              { type: 'string' },
+                    brand:                  { type: 'string' },
+                    category:               { type: 'string' },
+                    condition:              { type: 'string' },
+                    retail_price:           { type: 'number' },
+                    resale_low:             { type: 'number' },
+                    resale_high:            { type: 'number' },
+                    suggested_resale_price: { type: 'number' },
+                    confidence:             { type: 'string' },
+                    things_to_consider:     { type: 'array', items: { type: 'string' } },
+                    notes:                  { type: 'string' },
+                  },
                 },
               },
             },
@@ -73,12 +90,13 @@ Be concise but accurate. Use real market data to estimate prices.`;
         },
       });
 
-      const evalItems = aiResult?.items || [];
+      if (error) throw error;
+
+      const evalItems = data?.items || [];
       const paired = evalItems.map((ev, i) => ({
         id: Date.now() + i,
         eval: ev,
-        photoUrl: uploaded[i]?.localUrl || null,
-        uploadedUrl: uploaded[i]?.file_url || null,
+        photoUrl: photos[i]?.url || null,
       }));
       paired.sort((a, b) => (b.eval.suggested_resale_price || 0) - (a.eval.suggested_resale_price || 0));
 
@@ -86,7 +104,7 @@ Be concise but accurate. Use real market data to estimate prices.`;
       setPhotos([]);
       toast.success(`Evaluated ${paired.length} item${paired.length !== 1 ? 's' : ''}!`);
     } catch (err) {
-      toast.error('Evaluation failed: ' + err.message);
+      toast.error('Evaluation failed: ' + (err.message || 'Unknown error'));
     } finally {
       setEvaluating(false);
     }
@@ -95,16 +113,15 @@ Be concise but accurate. Use real market data to estimate prices.`;
   const removeResult = (id) => setResults(prev => prev.filter(r => r.id !== id));
 
   const handleCapture = (result) => {
-    navigate('/Capture', {
+    navigate('/flip-it', {
       state: {
-        prefill: {
-          item_name: result.eval.item_name,
-          brand: result.eval.brand,
-          category: result.eval.category,
-          condition: result.eval.condition,
-          notes: result.eval.notes,
-        },
-        photosData: result.uploadedUrl ? [{ compressedUrl: result.uploadedUrl, displayUrl: result.photoUrl, isCover: true }] : [],
+        item_name: result.eval.item_name,
+        brand: result.eval.brand,
+        category: result.eval.category,
+        condition: result.eval.condition,
+        notes: result.eval.notes,
+        suggested_resale_price: result.eval.suggested_resale_price,
+        photosData: result.photoUrl ? [{ displayUrl: result.photoUrl, compressedUrl: result.photoUrl }] : [],
       },
     });
   };

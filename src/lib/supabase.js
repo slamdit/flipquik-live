@@ -99,7 +99,6 @@ const db = {
 export const items                  = db.query('items');
 export const itemPhotos             = db.query('item_photos');
 export const sales                  = db.query('sales');
-export const listingDrafts          = db.query('listing_drafts');
 export const marketplaceActions     = db.query('marketplace_actions');
 export const marketplaceListings    = db.query('marketplace_listings');
 export const marketplaceAccounts    = db.query('marketplace_accounts');

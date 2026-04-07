@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { auth, items as itemsDb, itemPhotos as itemPhotosDb, listingDrafts as listingDraftsDb, supabase } from '@/lib/supabase';
+import { auth, items as itemsDb, itemPhotos as itemPhotosDb, supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 // ── Generate Listing Modal ──────────────────────────────────────
@@ -268,22 +268,6 @@ export default function FlipIt() {
         primary_photo_url: primaryPhotoUrl || undefined,
         updated_at: new Date().toISOString(),
       });
-
-      // Save listing draft — best-effort, non-blocking failure
-      if (title.trim() || description.trim() || price) {
-        try {
-          await listingDraftsDb.create({
-            item_id: item.id,
-            title: title.trim() || undefined,
-            description: description.trim() || undefined,
-            suggested_list_price: price ? parseFloat(price) : undefined,
-            price_suggestion: price ? parseFloat(price) : undefined,
-            listing_status: status === 'listed' ? 'ready' : 'draft',
-          });
-        } catch (draftErr) {
-          console.error('[FlipIt] listing_drafts create failed:', draftErr);
-        }
-      }
 
       // Save photo records — non-blocking
       if (photos.length > 0) {
