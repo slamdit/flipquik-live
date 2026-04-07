@@ -263,7 +263,7 @@ export default function FlipIt() {
         category: category.trim() || undefined,
         condition: condition.trim() || undefined,
         internal_notes: internalNotes.trim() || undefined,
-        purchase_price: parseFloat(purchasePrice),
+        cost: parseFloat(purchasePrice),
         status,
         primary_photo_url: primaryPhotoUrl || undefined,
         updated_at: new Date().toISOString(),
