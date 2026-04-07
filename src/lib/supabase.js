@@ -10,10 +10,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ─────────────────────────────────────────────
-// AUTH HELPERS (replaces base44.auth)
+// AUTH HELPERS (replaces legacy auth)
 // ─────────────────────────────────────────────
 export const auth = {
-  // Get current user (replaces base44.auth.me())
+  // Get current user (replaces legacy auth.me())
   me: async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) throw new Error('Not authenticated');
@@ -47,8 +47,8 @@ export const auth = {
 };
 
 // ─────────────────────────────────────────────
-// DATABASE HELPERS (replaces base44.entities)
-// Each mirrors the Base44 API pattern you used
+// DATABASE HELPERS (replaces legacy entities)
+// Each mirrors the legacy API pattern
 // ─────────────────────────────────────────────
 
 // Generic query builder
@@ -92,7 +92,7 @@ const db = {
 };
 
 // ─────────────────────────────────────────────
-// ENTITY SHORTCUTS (drop-in for Base44 pattern)
+// ENTITY SHORTCUTS (drop-in for legacy pattern)
 // Usage: import { items } from '@/lib/supabase'
 //        const myItems = await items.getAll({ filters: { user_id } })
 // ─────────────────────────────────────────────
@@ -110,7 +110,7 @@ export const expenses               = db.query('expenses');
 export const profiles               = db.query('profiles');
 
 // ─────────────────────────────────────────────
-// STORAGE HELPERS (replaces base44 UploadFile)
+// STORAGE HELPERS (replaces legacy UploadFile)
 // ─────────────────────────────────────────────
 export const storage = {
   uploadPhoto: async (file, userId) => {
@@ -140,7 +140,7 @@ export const storage = {
 };
 
 // ─────────────────────────────────────────────
-// AI HELPER (replaces base44 InvokeLLM)
+// AI HELPER (replaces legacy InvokeLLM)
 // Calls Anthropic API via your Supabase Edge Function
 // ─────────────────────────────────────────────
 export const ai = {

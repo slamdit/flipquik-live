@@ -1,39 +1,33 @@
-**Welcome to your Base44 project** 
+# FlipQuik
 
-**About**
+A mobile-first resale assistant for thrift flippers. Snap a photo, get instant resale intel, and manage your inventory from purchase to sale.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+## Stack
 
-This project contains everything you need to run your app locally.
+- React + Vite
+- Supabase (auth, database, storage, edge functions)
+- Anthropic Claude (vision-based item evaluation via `quikeval` edge function)
+- Tailwind CSS + shadcn/ui
 
-**Edit the code in your local development environment**
+## Getting started
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
-
-**Prerequisites:** 
-
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+1. Clone the repo
+2. Install dependencies: `npm install`
+3. Create `.env.local` with your Supabase credentials:
 
 ```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-Run the app: `npm run dev`
+4. Run locally: `npm run dev`
 
-**Publish your changes**
+## Edge functions
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+The `quikeval` Supabase edge function calls the Anthropic API. Deploy it with:
 
-**Docs & Support**
+```
+supabase functions deploy quikeval
+```
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
-
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+Set the `ANTHROPIC_API_KEY` secret in your Supabase project settings.
