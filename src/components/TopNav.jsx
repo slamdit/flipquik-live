@@ -1,18 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Camera, Package, DollarSign, Zap, Settings, TrendingUp, Layers, CheckSquare } from 'lucide-react';
+import { LayoutDashboard, Package, DollarSign, Zap, Settings, TrendingUp, Layers, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/Dashboard', icon: LayoutDashboard, label: 'Home' },
   { path: '/QuikEval', icon: Zap, label: 'QuikEval' },
   { path: '/MultiEval', icon: Layers, label: 'MultiEval' },
-  { path: '/Capture', icon: Camera, label: 'Capture' },
-
+  { path: '/flip-it', icon: Tag, label: 'Flip It' },
   { path: '/Inventory', icon: Package, label: 'Inventory' },
   { path: '/Sales', icon: DollarSign, label: 'Sales' },
   { path: '/Performance', icon: TrendingUp, label: 'Performance' },
-  { path: '/ActionQueue', icon: CheckSquare, label: 'Actions' },
 ];
 
 export default function TopNav() {

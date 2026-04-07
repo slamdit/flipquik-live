@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Camera, X, Image as ImageIcon } from 'lucide-react';
+import { Camera, X, Image as ImageIcon, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -55,7 +55,8 @@ async function uploadToSupabase(file) {
 }
 
 export default function PhotoCapture({ photos, setPhotos, uploading, setUploading }) {
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);   // forces camera on mobile
+  const libraryInputRef = useRef(null);  // opens file picker / camera roll
 
   const handlePhotoCapture = async (e) => {
     const files = Array.from(e.target.files);
@@ -105,8 +106,9 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
 
   return (
     <div className="space-y-3">
+      {/* Camera input — triggers native camera on mobile */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         multiple
@@ -114,11 +116,20 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
         onChange={handlePhotoCapture}
         className="hidden"
       />
+      {/* Library input — opens file picker / camera roll (no capture attr) */}
+      <input
+        ref={libraryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handlePhotoCapture}
+        className="hidden"
+      />
 
       {photos.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {photos.map((photo, index) => (
-            <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-slate-200">
+            <div key={index} className="relative h-24 rounded-xl overflow-hidden bg-slate-200">
               <img
                 src={getDisplayUrl(photo)}
                 alt={`Capture ${index + 1}`}
@@ -126,12 +137,12 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
               />
               <button
                 onClick={() => removePhoto(index)}
-                className="absolute top-2 right-2 p-1.5 bg-slate-900/80 text-white rounded-full active:scale-95 transition-transform"
+                className="absolute top-1 right-1 p-1 bg-slate-900/80 text-white rounded-full active:scale-95 transition-transform"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
               {index === 0 && (
-                <div className="absolute bottom-2 left-2 px-2 py-1 bg-slate-900/80 text-white text-xs rounded-full">
+                <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-slate-900/80 text-white text-[10px] rounded-full leading-tight">
                   Cover
                 </div>
               )}
@@ -140,29 +151,36 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
         </div>
       )}
 
-      <Button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
-        size="lg"
-        className="w-full h-14 text-base bg-slate-900 hover:bg-slate-800 active:scale-98"
-        data-testid="take-photos"
-      >
-        {uploading ? (
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Uploading...
-          </div>
-        ) : (
-          <>
-            {photos.length === 0 ? (
-              <><Camera className="w-5 h-5 mr-2" />Take Photos</>
-            ) : (
-              <><ImageIcon className="w-5 h-5 mr-2" />Add More Photos</>
-            )}
-          </>
-        )}
-      </Button>
+      {uploading ? (
+        <div className="flex items-center justify-center gap-2 h-12 rounded-xl bg-slate-100 text-slate-500 text-sm">
+          <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+          Uploading...
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            size="lg"
+            className="h-12 text-sm bg-slate-900 hover:bg-slate-800"
+            data-testid="take-photos"
+          >
+            <Camera className="w-4 h-4 mr-1.5" />
+            Take Photo
+          </Button>
+          <Button
+            type="button"
+            onClick={() => libraryInputRef.current?.click()}
+            size="lg"
+            variant="outline"
+            className="h-12 text-sm border-slate-300"
+            data-testid="upload-photos"
+          >
+            <FolderOpen className="w-4 h-4 mr-1.5" />
+            From Library
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
