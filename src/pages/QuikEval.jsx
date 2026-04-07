@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Zap, X, RefreshCw } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -17,13 +17,18 @@ const CONFIDENCE_STYLES = {
 };
 
 export default function QuikEval() {
-  // photos: [{ originalFile, compressedUrl, displayUrl }]
-  const [photos, setPhotos] = useState([]);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // photos: [{ originalFile, compressedUrl, displayUrl, base64 }]
+  const [photos, setPhotos] = useState(() => {
+    const pre = location.state?.preloadedPhoto;
+    return pre ? [pre] : [];
+  });
   const [itemSpecs, setItemSpecs] = useState('');
   const [uploading, setUploading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState(null);
-  const navigate = useNavigate();
 
 
 

@@ -52,12 +52,21 @@ export default function MultiEval() {
       // Encode photos as base64 for Claude vision (no storage upload needed)
       const base64_images = await Promise.all(photos.map(p => fileToBase64(p.file)));
 
-      const prompt = `You are an expert resale buyer evaluating items for resale value.
-You are given ${photos.length} photo(s), each showing a different item.
-For EACH item/photo (in the same order as provided), identify what the item is and evaluate its resale potential.
+      const prompt = `You are a fast resale triage assistant. You are given ${photos.length} photo(s), each showing a DIFFERENT item.
 
-Return a JSON object with an "items" array containing evaluations in the same order as the photos.
-Be concise but accurate. Use real market data to estimate prices.`;
+For EACH photo (in order), give a quick gut-check on whether it is worth a closer look for resale.
+
+Do NOT try to exactly identify the item. Instead, describe the category or type in a short phrase.
+
+Return a JSON object with an "items" array (one entry per photo, in the same order).
+
+For each item return ONLY these four fields:
+- potential_label: a short phrase describing what it might be — e.g. "Possible folk art", "Vintage glass candidate", "Brand name sneaker", "Likely low-value decor", "Collectible figurine candidate". Do NOT use the exact product name.
+- flip_signal: either "WORTH A LOOK" or "PROBABLY SKIP"
+- rough_range: a price range string like "$5–$20" or "$30–$80" — use realistic resale comps, not retail
+- one_liner: one sentence explaining the key reason it is or isn't worth flipping
+
+Be quick and decisive. Err on the side of flagging borderline items as WORTH A LOOK — the user will do a deeper eval on anything interesting.`;
 
       const { data, error } = await supabase.functions.invoke('quikeval', {
         body: {
@@ -71,17 +80,10 @@ Be concise but accurate. Use real market data to estimate prices.`;
                 items: {
                   type: 'object',
                   properties: {
-                    item_name:              { type: 'string' },
-                    brand:                  { type: 'string' },
-                    category:               { type: 'string' },
-                    condition:              { type: 'string' },
-                    retail_price:           { type: 'number' },
-                    resale_low:             { type: 'number' },
-                    resale_high:            { type: 'number' },
-                    suggested_resale_price: { type: 'number' },
-                    confidence:             { type: 'string' },
-                    things_to_consider:     { type: 'array', items: { type: 'string' } },
-                    notes:                  { type: 'string' },
+                    potential_label: { type: 'string' },
+                    flip_signal:     { type: 'string' },
+                    rough_range:     { type: 'string' },
+                    one_liner:       { type: 'string' },
                   },
                 },
               },
@@ -97,8 +99,12 @@ Be concise but accurate. Use real market data to estimate prices.`;
         id: Date.now() + i,
         eval: ev,
         photoUrl: photos[i]?.url || null,
+        base64: base64_images[i] || null,
       }));
-      paired.sort((a, b) => (b.eval.suggested_resale_price || 0) - (a.eval.suggested_resale_price || 0));
+      paired.sort((a, b) => {
+        const score = (r) => r.eval.flip_signal === 'WORTH A LOOK' ? 1 : 0;
+        return score(b) - score(a);
+      });
 
       setResults(prev => [...prev, ...paired]);
       setPhotos([]);
@@ -112,16 +118,12 @@ Be concise but accurate. Use real market data to estimate prices.`;
 
   const removeResult = (id) => setResults(prev => prev.filter(r => r.id !== id));
 
-  const handleCapture = (result) => {
-    navigate('/flip-it', {
+  const handleSendToQuikEval = (result) => {
+    navigate('/QuikEval', {
       state: {
-        item_name: result.eval.item_name,
-        brand: result.eval.brand,
-        category: result.eval.category,
-        condition: result.eval.condition,
-        notes: result.eval.notes,
-        suggested_resale_price: result.eval.suggested_resale_price,
-        photosData: result.photoUrl ? [{ displayUrl: result.photoUrl, compressedUrl: result.photoUrl }] : [],
+        preloadedPhoto: result.photoUrl && result.base64
+          ? { displayUrl: result.photoUrl, compressedUrl: result.photoUrl, base64: result.base64 }
+          : null,
       },
     });
   };
@@ -183,7 +185,7 @@ Be concise but accurate. Use real market data to estimate prices.`;
             </div>
             <div className="space-y-3">
               {results.map((result, i) => (
-                <EvalResultCard key={result.id} rank={i + 1} result={result} onCapture={() => handleCapture(result)} onRemove={() => removeResult(result.id)} />
+                <EvalResultCard key={result.id} rank={i + 1} result={result} onSendToQuikEval={() => handleSendToQuikEval(result)} onRemove={() => removeResult(result.id)} />
               ))}
             </div>
           </>
