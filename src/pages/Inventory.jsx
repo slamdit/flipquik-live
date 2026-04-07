@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Search, X, Clock, Trash2, RefreshCw } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Package, Search, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EditItemModal from '@/components/inventory/EditItemModal';
 import EbaySyncButton from '@/components/inventory/EbaySyncButton';
@@ -111,21 +111,10 @@ function ItemGroup({ title, items, onEdit, onRefetch }) {
 }
 
 export default function Inventory() {
+  const location = useLocation();
   const [search, setSearch] = useState('');
   const [editingItem, setEditingItem] = useState(null);
-  const [staleThresholdMonths, setStaleThresholdMonths] = useState(3);
-  const [customStaleMonths, setCustomStaleMonths] = useState('');
-  const [isCustomStaleThreshold, setIsCustomStaleThreshold] = useState(false);
-
-  const handleStaleSelect = (val) => {
-    if (val === 'custom') {
-      setIsCustomStaleThreshold(true);
-    } else {
-      setIsCustomStaleThreshold(false);
-      setStaleThresholdMonths(parseInt(val));
-    }
-  };
-
+  const [activeTab, setActiveTab] = useState(location.state?.defaultTab || 'all');
   const { data: items = [], isLoading, refetch } = useQuery({
     queryKey: ['inventory-items'],
     queryFn: async () => {
@@ -143,23 +132,17 @@ export default function Inventory() {
     );
   });
 
-  const drafts  = filtered.filter(i => DRAFT_STATUSES.includes(i.status));
+  const clipped = filtered.filter(i => DRAFT_STATUSES.includes(i.status));
   const listed  = filtered.filter(i => i.status === 'listed');
-  const sold    = filtered.filter(i => i.status === 'sold');
+  const flipped = filtered.filter(i => i.status === 'sold');
 
-  const staleItems = items.filter(item => {
-    if (item.status === 'sold' || item.status === 'archived') return false;
-    if (!item.created_date) return false;
-    const days = Math.floor((Date.now() - new Date(item.created_date).getTime()) / 86400000);
-    return days > staleThresholdMonths * 30;
-  });
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="bg-slate-900 text-white px-4 pt-4 pb-5">
         <div className="flex items-center gap-3 mb-4">
           <Package className="w-7 h-7" />
-          <h1 className="text-2xl font-bold">Inventory</h1>
+          <h1 className="text-2xl font-bold">My Items</h1>
           <span className="ml-auto text-slate-400 text-sm">{filtered.length} items</span>
         </div>
         <EbaySyncButton onSynced={refetch} />
@@ -187,48 +170,18 @@ export default function Inventory() {
           </div>
         ) : (
           <>
-            {/* Stale Threshold Config */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-slate-500 whitespace-nowrap">Stale after:</span>
-              <Select defaultValue="3" onValueChange={handleStaleSelect}>
-                <SelectTrigger className="h-8 text-xs w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="3">3 Months</SelectItem>
-                  <SelectItem value="6">6 Months</SelectItem>
-                  <SelectItem value="9">9 Months</SelectItem>
-                  <SelectItem value="12">12 Months</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-              {isCustomStaleThreshold && (
-                <Input
-                  type="number"
-                  min="1"
-                  value={customStaleMonths}
-                  onChange={e => {
-                    setCustomStaleMonths(e.target.value);
-                    if (e.target.value) setStaleThresholdMonths(parseInt(e.target.value));
-                  }}
-                  placeholder="Months"
-                  className="h-8 text-xs w-24"
-                />
-              )}
-            </div>
 
-          <Tabs defaultValue="all">
-            <TabsList className="grid w-full grid-cols-5 mb-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-4 mb-4">
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="drafts">Drafts</TabsTrigger>
               <TabsTrigger value="listed">Listed</TabsTrigger>
-              <TabsTrigger value="sold">Sold</TabsTrigger>
-              <TabsTrigger value="stale" className="relative">
-                Stale
-                {staleItems.length > 0 && (
-                  <span className="ml-1 bg-amber-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{staleItems.length}</span>
+              <TabsTrigger value="clipped">
+                Clipped
+                {clipped.length > 0 && (
+                  <span className="ml-1 bg-blue-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">{clipped.length}</span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="flipped">Flipped</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all">
@@ -239,14 +192,14 @@ export default function Inventory() {
                 </div>
               ) : (
                 <Accordion type="multiple" className="space-y-3">
-                  {drafts.length > 0 && (
-                    <AccordionItem value="drafts" className="bg-white rounded-xl shadow-sm border-0 overflow-hidden">
+                  {clipped.length > 0 && (
+                    <AccordionItem value="clipped" className="bg-white rounded-xl shadow-sm border-0 overflow-hidden">
                       <AccordionTrigger className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hover:no-underline">
-                        Drafts <span className="font-normal text-slate-400 ml-1">({drafts.length})</span>
+                        Clipped <span className="font-normal text-slate-400 ml-1">({clipped.length})</span>
                       </AccordionTrigger>
                       <AccordionContent className="px-3 pb-3">
                         <div className="space-y-2">
-                          {drafts.map(item => (
+                          {clipped.map(item => (
                             <ItemCard key={item.id} item={item} onEdit={setEditingItem} onDelete={refetch} />
                           ))}
                         </div>
@@ -267,14 +220,14 @@ export default function Inventory() {
                       </AccordionContent>
                     </AccordionItem>
                   )}
-                  {sold.length > 0 && (
-                    <AccordionItem value="sold" className="bg-white rounded-xl shadow-sm border-0 overflow-hidden">
+                  {flipped.length > 0 && (
+                    <AccordionItem value="flipped" className="bg-white rounded-xl shadow-sm border-0 overflow-hidden">
                       <AccordionTrigger className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hover:no-underline">
-                        Sold <span className="font-normal text-slate-400 ml-1">({sold.length})</span>
+                        Flipped <span className="font-normal text-slate-400 ml-1">({flipped.length})</span>
                       </AccordionTrigger>
                       <AccordionContent className="px-3 pb-3">
                         <div className="space-y-2">
-                          {sold.map(item => (
+                          {flipped.map(item => (
                             <ItemCard key={item.id} item={item} onEdit={setEditingItem} onDelete={refetch} />
                           ))}
                         </div>
@@ -282,17 +235,6 @@ export default function Inventory() {
                     </AccordionItem>
                   )}
                 </Accordion>
-              )}
-            </TabsContent>
-
-            <TabsContent value="drafts">
-              {drafts.length === 0 ? (
-                <div className="bg-white rounded-xl p-10 text-center">
-                  <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500">No draft items</p>
-                </div>
-              ) : (
-                <ItemGroup title="Drafts" items={drafts} onEdit={setEditingItem} onRefetch={refetch} />
               )}
             </TabsContent>
 
@@ -307,31 +249,27 @@ export default function Inventory() {
               )}
             </TabsContent>
 
-            <TabsContent value="sold">
-              {sold.length === 0 ? (
+            <TabsContent value="clipped">
+              {clipped.length === 0 ? (
                 <div className="bg-white rounded-xl p-10 text-center">
                   <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500">No sold items</p>
+                  <p className="text-slate-500">No clipped items</p>
+                  <p className="text-xs text-slate-400 mt-1">Items you save from QuikEval appear here</p>
                 </div>
               ) : (
-                <ItemGroup title="Sold" items={sold} onEdit={setEditingItem} onRefetch={refetch} />
+                <ItemGroup title="Clipped" items={clipped} onEdit={setEditingItem} onRefetch={refetch} />
               )}
             </TabsContent>
-            <TabsContent value="stale">
-              {staleItems.length === 0 ? (
+
+            <TabsContent value="flipped">
+              {flipped.length === 0 ? (
                 <div className="bg-white rounded-xl p-10 text-center">
                   <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500">No stale items</p>
-                  <p className="text-xs text-slate-400 mt-1">Items not sold after {staleThresholdMonths} months will appear here</p>
+                  <p className="text-slate-500">Nothing flipped yet</p>
+                  <p className="text-xs text-slate-400 mt-1">Sold items will appear here</p>
                 </div>
               ) : (
-                <div>
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 flex items-start gap-2">
-                    <Clock className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                    <p className="text-xs text-amber-800">{staleItems.length} item{staleItems.length !== 1 ? 's' : ''} have been in inventory for over {staleThresholdMonths} months without selling. Tap an item to regenerate its listing, update pricing, or purge it.</p>
-                  </div>
-                  <ItemGroup title="Stale Items" items={staleItems} onEdit={setEditingItem} onRefetch={refetch} />
-                </div>
+                <ItemGroup title="Flipped" items={flipped} onEdit={setEditingItem} onRefetch={refetch} />
               )}
             </TabsContent>
           </Tabs>

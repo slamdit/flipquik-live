@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, ShoppingCart, X, RefreshCw } from 'lucide-react';
+import { Zap, X, RefreshCw } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { compressImage } from '@/utils/imageCompression';
@@ -83,20 +83,18 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
     }
   };
 
-  const handleCapture = () => {
-    navigate('/Capture', {
+  const handleFlipIt = () => {
+    navigate('/flip-it', {
       state: {
-        prefill: {
-          item_name: result.item_name || itemSpecs || '',
-          brand: result.brand || '',
-          category: result.category || '',
-          condition: result.condition || '',
-          notes: result.notes || '',
-          suggested_price: result.suggested_resale_price,
-          resale_low: result.resale_low,
-          resale_high: result.resale_high,
-        },
-        photosData: photos, // full objects with originalFile + compressedUrl
+        item_name: result.item_name || itemSpecs || '',
+        brand: result.brand || '',
+        category: result.category || '',
+        condition: result.condition || '',
+        notes: result.notes || '',
+        suggested_price: result.suggested_resale_price,
+        resale_low: result.resale_low,
+        resale_high: result.resale_high,
+        photosData: photos,
       },
     });
   };
@@ -246,13 +244,13 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
                 Skip Flip
               </Button>
               <Button
-                onClick={handleCapture}
+                onClick={handleFlipIt}
                 size="lg"
-                className="h-14 text-base bg-slate-900 hover:bg-slate-800"
-                data-testid="quikeval-capture"
+                className="h-14 text-base bg-amber-500 hover:bg-amber-600 text-white"
+                data-testid="quikeval-flip-it"
               >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Capture
+                <Zap className="w-5 h-5 mr-2" />
+                Flip It!
               </Button>
             </div>
 

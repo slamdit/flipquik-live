@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import TopNav from '@/components/TopNav';
+import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Capture from '@/pages/Capture';
 import Inventory from '@/pages/Inventory';
@@ -12,6 +13,7 @@ import Sales from '@/pages/Sales';
 import Insights from '@/pages/Insights';
 import Settings from '@/pages/Settings';
 import QuikEval from '@/pages/QuikEval';
+import FlipIt from '@/pages/FlipIt';
 import Performance from '@/pages/Performance';
 import EbayAuthCallback from '@/pages/EbayAuthCallback';
 import MultiEval from '@/pages/MultiEval';
@@ -20,8 +22,8 @@ import ActionQueue from '@/pages/ActionQueue';
 import MarketplaceConnections from '@/pages/MarketplaceConnections';
 import PlatformTemplates from '@/pages/PlatformTemplates';
 
-const AppShell = () => {
-  const { isLoadingAuth } = useAuth();
+const AppRoutes = () => {
+  const { user, isLoadingAuth } = useAuth();
 
   if (isLoadingAuth) {
     return (
@@ -31,12 +33,24 @@ const AppShell = () => {
     );
   }
 
+  // Not logged in — only /login is accessible
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Logged in — full app
   return (
     <>
       <TopNav />
       <div className="pt-24">
         <Routes>
           <Route path="/" element={<Navigate to="/Dashboard" replace />} />
+          <Route path="/login" element={<Navigate to="/Dashboard" replace />} />
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Capture" element={<Capture />} />
           <Route path="/Inventory" element={<Inventory />} />
@@ -44,6 +58,7 @@ const AppShell = () => {
           <Route path="/Insights" element={<Insights />} />
           <Route path="/Settings" element={<Settings />} />
           <Route path="/QuikEval" element={<QuikEval />} />
+          <Route path="/flip-it" element={<FlipIt />} />
           <Route path="/Performance" element={<Performance />} />
           <Route path="/ebay-auth-callback" element={<EbayAuthCallback />} />
           <Route path="/MultiEval" element={<MultiEval />} />
@@ -58,14 +73,12 @@ const AppShell = () => {
   );
 };
 
-
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AppShell />
+          <AppRoutes />
         </Router>
         <Toaster />
       </QueryClientProvider>
