@@ -258,7 +258,7 @@ export default function FlipIt() {
       // updated_at is handled the same way on create.
       const item = await itemsDb.create({
         user_id: userId,
-        item_name: title.trim() || 'Untitled Item',
+        name: title.trim() || 'Untitled Item',
         brand: brand.trim() || undefined,
         category: category.trim() || undefined,
         condition: condition.trim() || undefined,
