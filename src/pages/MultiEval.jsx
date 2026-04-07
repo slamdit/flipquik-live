@@ -36,9 +36,18 @@ export default function MultiEval() {
   const [results, setResults] = useState([]);
   const [evaluating, setEvaluating] = useState(false);
 
-  const handlePhotoAdd = (e) => {
+  const handlePhotoAdd = async (e) => {
     const files = Array.from(e.target.files || []);
-    const newPhotos = files.map(file => ({ url: URL.createObjectURL(file), file }));
+    if (files.length === 0) return;
+
+    // Convert to base64 immediately at add time — same pattern as QuikEval/PhotoCapture
+    const newPhotos = await Promise.all(
+      files.map(async (file) => {
+        const url = URL.createObjectURL(file);
+        const base64 = await fileToBase64(file);
+        return { url, file, base64 };
+      })
+    );
     setPhotos(prev => [...prev, ...newPhotos]);
     e.target.value = '';
   };
@@ -49,10 +58,13 @@ export default function MultiEval() {
     if (photos.length === 0) { toast.error('Add at least one photo first'); return; }
     setEvaluating(true);
     try {
-      // Encode photos as base64 for Claude vision (no storage upload needed)
-      const base64_images = await Promise.all(photos.map(p => fileToBase64(p.file)));
+      // base64 was already computed at add time — just read it off each photo
+      const base64_images = photos.map(p => p.base64).filter(Boolean);
+      if (base64_images.length === 0) {
+        throw new Error('Photos could not be encoded. Please try removing and re-adding them.');
+      }
 
-      const prompt = `You are a fast resale triage assistant. You are given ${photos.length} photo(s), each showing a DIFFERENT item.
+      const prompt = `You are a fast resale triage assistant. You are given ${base64_images.length} photo(s), each showing a DIFFERENT item.
 
 For EACH photo (in order), give a quick gut-check on whether it is worth a closer look for resale.
 
@@ -108,7 +120,11 @@ Be quick and decisive. Err on the side of flagging borderline items as WORTH A L
 
       setResults(prev => [...prev, ...paired]);
       setPhotos([]);
-      toast.success(`Evaluated ${paired.length} item${paired.length !== 1 ? 's' : ''}!`);
+      if (paired.length > 0) {
+        toast.success(`Evaluated ${paired.length} item${paired.length !== 1 ? 's' : ''}!`);
+      } else {
+        toast.error('AI returned no results. Try again.');
+      }
     } catch (err) {
       toast.error('Evaluation failed: ' + (err.message || 'Unknown error'));
     } finally {
