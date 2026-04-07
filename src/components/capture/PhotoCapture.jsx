@@ -127,9 +127,9 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
       />
 
       {photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {photos.map((photo, index) => (
-            <div key={index} className="relative h-24 rounded-xl overflow-hidden bg-slate-200">
+            <div key={index} className="relative w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-slate-200">
               <img
                 src={getDisplayUrl(photo)}
                 alt={`Capture ${index + 1}`}
