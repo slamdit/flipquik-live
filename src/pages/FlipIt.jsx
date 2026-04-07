@@ -26,6 +26,8 @@ Notes: ${notes || 'None'}
 
 Write a short, buyer-friendly listing. No filler phrases like "must have" or "see photos".
 
+CRITICAL — VARIATION REQUIRED: Each generation MUST start with a completely different opening sentence and emphasize entirely different selling points. Use a distinctly different tone and writing style — choose one: storytelling narrative, punchy bullet-point highlights, collector-focused detail, casual conversational, or auction-house formal. Never repeat phrases from any previous version. Make this feel genuinely fresh.
+
 Return JSON only with exactly these two fields:
 - title: max 80 characters, brand + item type + key detail
 - description: 2-4 sentences, honest and specific`;
@@ -59,8 +61,8 @@ Return JSON only with exactly these two fields:
   React.useEffect(() => { generate(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
-      <div className="w-full max-w-lg bg-white rounded-t-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-16 px-4">
+      <div className="w-full max-w-lg bg-white rounded-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-amber-500" />
           <h2 className="font-bold text-slate-900 text-lg">AI Listing</h2>
@@ -319,6 +321,58 @@ export default function FlipIt() {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Action buttons + Generate — shown FIRST before scrolling to form */}
+        <div className="space-y-2">
+          <Button
+            onClick={() => setShowGenerateModal(true)}
+            size="lg"
+            variant="outline"
+            className="w-full h-12 border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Generate Listing
+          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={handleClipIt}
+              disabled={saving}
+              size="lg"
+              variant="outline"
+              className="h-14 text-base border-slate-300"
+            >
+              {saving ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                  Saving...
+                </div>
+              ) : (
+                <>
+                  <Bookmark className="w-5 h-5 mr-2" />
+                  Clip It
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleListIt}
+              disabled={saving}
+              size="lg"
+              className="h-14 text-base bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {saving ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </div>
+              ) : (
+                <>
+                  <ShoppingBag className="w-5 h-5 mr-2" />
+                  List It!
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
         {/* Photo strip */}
         {photos.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -403,58 +457,6 @@ export default function FlipIt() {
               />
             </div>
           </div>
-
-          {/* Generate Listing */}
-          <Button
-            onClick={() => setShowGenerateModal(true)}
-            size="lg"
-            variant="outline"
-            className="w-full h-12 border-amber-300 text-amber-700 hover:bg-amber-50"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Generate Listing
-          </Button>
-        </div>
-
-        {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={handleClipIt}
-            disabled={saving}
-            size="lg"
-            variant="outline"
-            className="h-14 text-base border-slate-300"
-          >
-            {saving ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
-                Saving...
-              </div>
-            ) : (
-              <>
-                <Bookmark className="w-5 h-5 mr-2" />
-                Clip It
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleListIt}
-            disabled={saving}
-            size="lg"
-            className="h-14 text-base bg-amber-500 hover:bg-amber-600 text-white"
-          >
-            {saving ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </div>
-            ) : (
-              <>
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                List It!
-              </>
-            )}
-          </Button>
         </div>
       </div>
 
