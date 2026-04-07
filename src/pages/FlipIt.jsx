@@ -213,6 +213,7 @@ export default function FlipIt() {
   const [price, setPrice] = useState(state.suggested_price ?? state.suggested_resale_price ?? '');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [purchasePriceError, setPurchasePriceError] = useState(false);
+  const [internalNotes, setInternalNotes] = useState('');
   const purchasePriceRef = useRef(null);
   const photos = state.photosData || state.photos || [];
 
@@ -261,7 +262,7 @@ export default function FlipIt() {
         brand: brand.trim() || undefined,
         category: category.trim() || undefined,
         condition: condition.trim() || undefined,
-        internal_notes: description.trim() || undefined,
+        internal_notes: internalNotes.trim() || undefined,
         purchase_price: parseFloat(purchasePrice),
         status,
         primary_photo_url: primaryPhotoUrl || undefined,
@@ -486,6 +487,19 @@ export default function FlipIt() {
             {purchasePriceError && (
               <p className="text-xs text-red-500 mt-1">Purchase price is required (enter 0 if free)</p>
             )}
+          </div>
+
+          {/* Internal Notes */}
+          <div>
+            <Label htmlFor="internalNotes" className="text-sm font-medium text-slate-700">Internal Notes</Label>
+            <p className="text-xs text-slate-400 mt-0.5 mb-1">Private — never sent to listing platforms</p>
+            <Textarea
+              id="internalNotes"
+              value={internalNotes}
+              onChange={e => setInternalNotes(e.target.value)}
+              placeholder="e.g. Got this at Goodwill on Main St, missing original tag..."
+              className="min-h-20 text-sm"
+            />
           </div>
         </div>
       </div>
