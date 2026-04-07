@@ -315,7 +315,7 @@ export default function FlipIt() {
     try {
       await saveItem('draft');
       toast.success('Clipped! Saved to My Items.');
-      navigate('/Inventory', { state: { defaultTab: 'clipped' } });
+      navigate('/');
     } catch (err) {
       toast.error(err?.message || 'Failed to save. Try again.');
     }
@@ -524,7 +524,7 @@ export default function FlipIt() {
           price={price}
           onClose={() => {
             setShowPlatformModal(false);
-            navigate('/Inventory', { state: { defaultTab: 'listed' } });
+            navigate('/');
           }}
         />
       )}
