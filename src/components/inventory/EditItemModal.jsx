@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Camera } from 'lucide-react';
+import { X, Trash2, Camera, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,36 +41,75 @@ export default function EditItemModal({ item, onClose, onSaved }) {
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      toast.error('Item name is required');
-      return;
-    }
+    if (!form.name.trim()) { toast.error('Item name is required'); return; }
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('items')
-        .update({
-          name:              form.name.trim(),
-          brand:             form.brand.trim()             || null,
-          category:          form.category.trim()          || null,
-          condition:         form.condition.trim()         || null,
-          size:              form.size.trim()              || null,
-          color:             form.color.trim()             || null,
-          cost:              form.cost !== ''              ? parseFloat(form.cost)            : null,
-          suggested_price:   form.suggested_price !== ''  ? parseFloat(form.suggested_price) : null,
-          purchase_location: form.purchase_location.trim() || null,
-          notes:             form.notes.trim()             || null,
-          internal_notes:    form.internal_notes.trim()   || null,
-          updated_at:        new Date().toISOString(),
-        })
-        .eq('id', item.id);
-
-      if (error) throw error;
+      await saveItem();
       toast.success('Item updated');
       onSaved();
       onClose();
     } catch (err) {
       toast.error(err.message || 'Failed to update item');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveItem = async () => {
+    const { error } = await supabase
+      .from('items')
+      .update({
+        name:              form.name.trim(),
+        brand:             form.brand.trim()              || null,
+        category:          form.category.trim()           || null,
+        condition:         form.condition.trim()          || null,
+        size:              form.size.trim()               || null,
+        color:             form.color.trim()              || null,
+        cost:              form.cost !== ''               ? parseFloat(form.cost)            : null,
+        suggested_price:   form.suggested_price !== ''   ? parseFloat(form.suggested_price) : null,
+        purchase_location: form.purchase_location.trim() || null,
+        notes:             form.notes.trim()              || null,
+        internal_notes:    form.internal_notes.trim()    || null,
+        updated_at:        new Date().toISOString(),
+      })
+      .eq('id', item.id);
+    if (error) throw error;
+  };
+
+  const handleSaveAndEmail = async () => {
+    if (!form.name.trim()) { toast.error('Item name is required'); return; }
+    setSaving(true);
+    try {
+      await saveItem();
+
+      const name     = form.name.trim();
+      const price    = form.suggested_price !== '' ? `$${parseFloat(form.suggested_price).toFixed(2)}` : 'TBD';
+      const lines    = [
+        `Item: ${name}`,
+        form.brand     ? `Brand: ${form.brand}`         : null,
+        form.category  ? `Category: ${form.category}`   : null,
+        form.condition ? `Condition: ${form.condition}`  : null,
+        form.size      ? `Size: ${form.size}`            : null,
+        form.color     ? `Color: ${form.color}`          : null,
+        '',
+        form.notes     ? `Description:\n${form.notes}`  : null,
+        '',
+        `Asking Price: ${price}`,
+        '',
+        'Ready to list on eBay, Poshmark, Mercari, Facebook Marketplace, or OfferUp.',
+        '',
+        '— Sent from FlipQuik',
+      ].filter(l => l !== null);
+
+      const subject = encodeURIComponent(`FlipQuik Listing: ${name}`);
+      const body    = encodeURIComponent(lines.join('\n'));
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+
+      toast.success('Item saved — email composer opening...');
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save item');
     } finally {
       setSaving(false);
     }
@@ -204,6 +243,17 @@ export default function EditItemModal({ item, onClose, onSaved }) {
               }
             </Button>
           </div>
+
+          <Button
+            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleSaveAndEmail}
+            disabled={saving || deleting}
+          >
+            {saving
+              ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              : <><Mail className="w-4 h-4 mr-1.5" />Save &amp; Send to Email</>
+            }
+          </Button>
 
           <Button
             variant="outline"
