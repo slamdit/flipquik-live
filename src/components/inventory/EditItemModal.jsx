@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 export default function EditItemModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
-    name:              item.name || '',
+    name:              item.name || item.item_name || '',
     brand:             item.brand || '',
     category:          item.category || '',
     condition:         item.condition || '',
