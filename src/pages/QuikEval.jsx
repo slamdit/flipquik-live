@@ -7,6 +7,7 @@ import { compressImage } from '@/utils/imageCompression';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import PhotoCapture from '@/components/capture/PhotoCapture';
+import EbaySoldComps from '@/components/quikeval/EbaySoldComps';
 import supabase from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -29,8 +30,22 @@ export default function QuikEval() {
   const [uploading, setUploading] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState(null);
+  const [isPro, setIsPro] = useState(false);
 
-
+  // Check if user is Pro
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from('profiles')
+        .select('is_pro')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.is_pro) setIsPro(true);
+        });
+    });
+  }, []);
 
   const runEvaluation = async () => {
     setEvaluating(true);
@@ -53,6 +68,8 @@ Return JSON with these fields:
 - confidence: "low", "medium", or "high" based on how confidently you identified the item
 - things_to_consider: array of 3-4 short practical tips for a reseller (platform fit, common issues, demand, timing, or specific authentication requirements like "check for authentication papers," "look for serial numbers," "examine for specific hallmarks" if high value is conditional on external verification)
 - notes: 1-2 sentence summary of what you see and why someone would/wouldn't want to flip this. If confidence is low, explain why (e.g., potential counterfeit, too generic, missing key details for identification).
+
+For books: always identify the specific edition, ISBN, publisher, and printing number. US first printings are often significantly more valuable than later international editions. Never average all editions together.
 
 Be conservative. Do not inflate prices. Base estimates on realistic sold comps from top reseller sites (such as eBay, Poshmark, Mercari) within the last year.`;
 
@@ -213,6 +230,9 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
                 </div>
               </div>
             </div>
+
+            {/* eBay Sold Comps */}
+            <EbaySoldComps itemName={result.item_name} isPro={isPro} />
 
             {/* Things to consider */}
             {result.things_to_consider?.length > 0 && (
