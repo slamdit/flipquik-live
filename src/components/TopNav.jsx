@@ -1,7 +1,8 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, DollarSign, Zap, Settings, TrendingUp, Layers, Tag } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Package, DollarSign, Zap, Settings, TrendingUp, Layers, Tag, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/AuthContext';
 
 const navItems = [
   { path: '/Dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -15,14 +16,30 @@ const navItems = [
 
 export default function TopNav() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 z-50">
       <div className="flex items-center justify-between px-3 h-12">
         <Link to="/Dashboard" className="text-lg font-bold text-slate-900 shrink-0">FlipQuik</Link>
-        <Link to="/Settings" className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 shrink-0">
-          <Settings className="w-5 h-5" />
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link to="/Settings" className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-500 shrink-0">
+            <Settings className="w-5 h-5" />
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-lg hover:bg-red-50 transition-colors text-slate-400 hover:text-red-500 shrink-0"
+            title="Sign out"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-1 px-3 pb-2">
         {navItems.map(({ path, icon: Icon, label }) => {
