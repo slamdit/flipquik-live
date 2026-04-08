@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Trash2, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +23,20 @@ export default function EditItemModal({ item, onClose, onSaved }) {
   });
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [photos,   setPhotos]   = useState(
+    item.primary_photo_url ? [{ original_photo: item.primary_photo_url, is_cover: true }] : []
+  );
+
+  useEffect(() => {
+    supabase
+      .from('item_photos')
+      .select('*')
+      .eq('item_id', item.id)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        if (data && data.length > 0) setPhotos(data);
+      });
+  }, [item.id]);
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
@@ -91,13 +105,29 @@ export default function EditItemModal({ item, onClose, onSaved }) {
           </button>
         </div>
 
-        {/* Cover photo preview */}
-        {item.primary_photo_url && (
-          <img
-            src={item.primary_photo_url}
-            alt=""
-            className="w-full h-40 object-cover rounded-xl mb-4 border border-slate-200"
-          />
+        {/* Photo strip */}
+        {photos.length > 0 ? (
+          <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
+            {photos.map((p, i) => (
+              <div key={p.id || i} className="relative shrink-0">
+                <img
+                  src={p.original_photo}
+                  alt=""
+                  className="w-20 h-20 object-cover rounded-xl border border-slate-200"
+                />
+                {(p.is_cover || i === 0) && (
+                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-slate-900/80 text-white text-[10px] rounded-full leading-tight">
+                    Cover
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-20 rounded-xl bg-slate-100 mb-4 text-slate-400 gap-2 text-sm">
+            <Camera className="w-4 h-4" />
+            No photos
+          </div>
         )}
 
         <div className="space-y-3">
