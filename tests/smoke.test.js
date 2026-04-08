@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 
 const EMAIL    = process.env.FLIPQUIK_EMAIL    || 'slamd694@gmail.com';
-const PASSWORD = process.env.FLIPQUIK_PASSWORD || 'qwjDmV1siYYY7M';
+const PASSWORD = process.env.FLIPQUIK_PASSWORD || ']h$!a8A$i&;YPae';
 const BASE     = 'https://flipquik.com';
 
 // All navigable pages (after login)
