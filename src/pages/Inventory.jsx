@@ -46,15 +46,12 @@ async function fetchItems(status) {
     .select('*')
     .eq('user_id', userId)
     .neq('status', 'archived')
-    .order('created_date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(300);
 
   if (status) q = q.eq('status', status);
 
   const { data, error } = await q;
-  console.log('[Inventory] user_id:', userId);
-  console.log('[Inventory] query error:', error);
-  console.log('[Inventory] raw data:', data);
   if (error) throw error;
   return data || [];
 }
@@ -82,7 +79,7 @@ function applyFilters(items, { search, category, sortBy }) {
       case 'price':    return (itemPrice(b) ?? 0) - (itemPrice(a) ?? 0);
       case 'category': return (a.category || '').localeCompare(b.category || '');
       case 'date':
-      default:         return new Date(b.created_date || 0) - new Date(a.created_date || 0);
+      default:         return new Date(b.created_at || 0) - new Date(a.created_at || 0);
     }
   });
 }
@@ -161,7 +158,7 @@ function ItemCard({ item, onEdit, onDelete }) {
         <div className="flex items-center gap-3 mt-1">
           {price != null && <span className="text-xs font-medium text-slate-700">${price.toFixed(2)}</span>}
           {cost  != null && <span className="text-xs text-slate-400">Cost ${cost.toFixed(2)}</span>}
-          <span className="text-xs text-slate-300 ml-auto">{formatDate(item.created_date)}</span>
+          <span className="text-xs text-slate-300 ml-auto">{formatDate(item.created_at)}</span>
         </div>
 
         {/* Mark as Flipped — only on listed items */}
