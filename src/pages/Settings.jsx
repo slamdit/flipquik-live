@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 export default function Settings() {
   const [user, setUser] = useState(null);
   const [connecting, setConnecting] = useState(false);
+  const [ebayAccount, setEbayAccount] = useState(null);
 
   const [fullName, setFullName] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -24,12 +25,20 @@ export default function Settings() {
       if (user) {
         setUser(user);
         setFullName(user.user_metadata?.full_name || '');
+        // Fetch eBay connection status from marketplace_accounts
+        supabase
+          .from('marketplace_accounts')
+          .select('id, is_connected, token_expires_at')
+          .eq('user_id', user.id)
+          .eq('platform', 'ebay')
+          .maybeSingle()
+          .then(({ data }) => setEbayAccount(data));
       }
     });
   }, []);
 
-  const isConnected = !!(user?.user_metadata?.ebay_access_token);
-  const tokenExpiry = user?.user_metadata?.ebay_token_expiry ? new Date(user.user_metadata.ebay_token_expiry) : null;
+  const isConnected = !!(ebayAccount?.is_connected);
+  const tokenExpiry = ebayAccount?.token_expires_at ? new Date(ebayAccount.token_expires_at) : null;
   const isExpired = tokenExpiry && tokenExpiry < new Date();
 
   const handleSaveProfile = async () => {
@@ -83,14 +92,15 @@ export default function Settings() {
   };
 
   const handleDisconnect = async () => {
-    const { error } = await supabase.auth.updateUser({
-      data: { ebay_access_token: null, ebay_refresh_token: null, ebay_token_expiry: null }
-    });
+    if (!ebayAccount?.id) return;
+    const { error } = await supabase
+      .from('marketplace_accounts')
+      .update({ is_connected: false, updated_at: new Date().toISOString() })
+      .eq('id', ebayAccount.id);
     if (!error) {
-      setUser(prev => ({
-        ...prev,
-        user_metadata: { ...prev?.user_metadata, ebay_access_token: null, ebay_refresh_token: null, ebay_token_expiry: null }
-      }));
+      setEbayAccount(prev => ({ ...prev, is_connected: false }));
+      // Clear the user_metadata flag
+      await supabase.auth.updateUser({ data: { ebay_connected: false } });
       toast.success('eBay account disconnected.');
     }
   };
