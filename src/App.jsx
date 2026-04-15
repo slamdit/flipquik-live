@@ -22,6 +22,7 @@ import DistributeListing from '@/pages/DistributeListing';
 import ActionQueue from '@/pages/ActionQueue';
 import MarketplaceConnections from '@/pages/MarketplaceConnections';
 import PlatformTemplates from '@/pages/PlatformTemplates';
+import Billing from '@/pages/Billing';
 
 const AppRoutes = () => {
   const { user, isLoadingAuth } = useAuth();
@@ -67,6 +68,7 @@ const AppRoutes = () => {
           <Route path="/ActionQueue" element={<ActionQueue />} />
           <Route path="/MarketplaceConnections" element={<MarketplaceConnections />} />
           <Route path="/PlatformTemplates" element={<PlatformTemplates />} />
+          <Route path="/Billing" element={<Billing />} />
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </div>
