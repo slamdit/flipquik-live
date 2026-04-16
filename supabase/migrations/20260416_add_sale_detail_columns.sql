@@ -1,0 +1,6 @@
+-- Add detailed cost breakdown columns to sales table
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS shipping_cost NUMERIC DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS platform_fees NUMERIC DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS other_costs NUMERIC DEFAULT 0;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS platform TEXT;
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS internal_notes TEXT;

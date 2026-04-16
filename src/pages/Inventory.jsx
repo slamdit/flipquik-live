@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Package, Search, X, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Package, Search, X, Trash2, ChevronDown, ChevronRight, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import EditItemModal from '@/components/inventory/EditItemModal';
+import SaleModal from '@/components/inventory/SaleModal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -85,9 +86,8 @@ function applyFilters(items, { search, category, sortBy }) {
 }
 
 // ── Item Card ────────────────────────────────────────────────────
-function ItemCard({ item, onEdit, onDelete }) {
-  const [deleting,  setDeleting]  = useState(false);
-  const [flipping,  setFlipping]  = useState(false);
+function ItemCard({ item, onEdit, onDelete, onMarkFlipped }) {
+  const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async (e) => {
     e.stopPropagation();
@@ -102,25 +102,6 @@ function ItemCard({ item, onEdit, onDelete }) {
       toast.error('Failed to delete item');
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const handleMarkFlipped = async (e) => {
-    e.stopPropagation();
-    if (!window.confirm(`Mark "${itemName(item)}" as Flipped?`)) return;
-    setFlipping(true);
-    try {
-      const { error } = await supabase
-        .from('items')
-        .update({ status: 'flipped', updated_at: new Date().toISOString() })
-        .eq('id', item.id);
-      if (error) throw error;
-      toast.success('Marked as Flipped!');
-      onDelete(); // refetches
-    } catch {
-      toast.error('Failed to update status');
-    } finally {
-      setFlipping(false);
     }
   };
 
@@ -164,14 +145,11 @@ function ItemCard({ item, onEdit, onDelete }) {
         {/* Mark as Flipped — only on listed items */}
         {item.status === 'listed' && (
           <button
-            onClick={handleMarkFlipped}
-            disabled={flipping}
-            className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg py-1.5 transition-colors disabled:opacity-50"
+            onClick={(e) => { e.stopPropagation(); onMarkFlipped(item); }}
+            className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg py-1.5 transition-colors"
           >
-            {flipping
-              ? <div className="w-3 h-3 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
-              : '✓ Mark as Flipped'
-            }
+            <PartyPopper className="w-3.5 h-3.5" />
+            Mark as Flipped
           </button>
         )}
       </div>
@@ -192,7 +170,7 @@ function ItemCard({ item, onEdit, onDelete }) {
 }
 
 // ── Collapsible group for All tab ────────────────────────────────
-function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch }) {
+function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch, onMarkFlipped }) {
   const [open, setOpen] = useState(defaultOpen);
   if (count === 0) return null;
   return (
@@ -209,7 +187,7 @@ function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch }) {
       {open && (
         <div className="px-3 pb-3 space-y-2">
           {items.map(item => (
-            <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} />
+            <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} onMarkFlipped={onMarkFlipped} />
           ))}
         </div>
       )}
@@ -218,7 +196,7 @@ function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch }) {
 }
 
 // ── Flat list for individual tabs ────────────────────────────────
-function ItemList({ items, loading, emptyText, emptySubtext, onEdit, onRefetch }) {
+function ItemList({ items, loading, emptyText, emptySubtext, onEdit, onRefetch, onMarkFlipped }) {
   if (loading) return (
     <div className="flex justify-center py-16">
       <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
@@ -234,7 +212,7 @@ function ItemList({ items, loading, emptyText, emptySubtext, onEdit, onRefetch }
   return (
     <div className="space-y-2">
       {items.map(item => (
-        <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} />
+        <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} onMarkFlipped={onMarkFlipped} />
       ))}
     </div>
   );
@@ -316,6 +294,7 @@ export default function Inventory() {
   const [category,     setCategory]     = useState('__all__');
   const [statusFilter, setStatusFilter] = useState('__all__');
   const [editingItem,  setEditingItem]  = useState(null);
+  const [saleItem,     setSaleItem]     = useState(null);
 
   // ── Queries ──
   const allQuery = useQuery({
@@ -428,6 +407,7 @@ export default function Inventory() {
                 emptyText="No items found"
                 onEdit={setEditingItem}
                 onRefetch={refetchAll}
+                onMarkFlipped={setSaleItem}
               />
             ) : (
               // Grouped accordion
@@ -439,9 +419,9 @@ export default function Inventory() {
                   </div>
                 ) : (
                   <>
-                    <ItemGroup title="Clipped" count={allClipped.length} items={allClipped} defaultOpen={true}  onEdit={setEditingItem} onRefetch={refetchAll} />
-                    <ItemGroup title="Listed"  count={allListed.length}  items={allListed}  defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} />
-                    <ItemGroup title="Flipped" count={allFlipped.length} items={allFlipped} defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} />
+                    <ItemGroup title="Clipped" count={allClipped.length} items={allClipped} defaultOpen={true}  onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} />
+                    <ItemGroup title="Listed"  count={allListed.length}  items={allListed}  defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} />
+                    <ItemGroup title="Flipped" count={allFlipped.length} items={allFlipped} defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} />
                   </>
                 )}
               </div>
@@ -465,6 +445,7 @@ export default function Inventory() {
               emptySubtext="Items you save from QuikEval appear here"
               onEdit={setEditingItem}
               onRefetch={refetchAll}
+              onMarkFlipped={setSaleItem}
             />
           </TabsContent>
 
@@ -484,6 +465,7 @@ export default function Inventory() {
               emptyText="No listed items"
               onEdit={setEditingItem}
               onRefetch={refetchAll}
+              onMarkFlipped={setSaleItem}
             />
           </TabsContent>
 
@@ -504,6 +486,7 @@ export default function Inventory() {
               emptySubtext="Sold items will appear here"
               onEdit={setEditingItem}
               onRefetch={refetchAll}
+              onMarkFlipped={setSaleItem}
             />
           </TabsContent>
         </Tabs>
@@ -514,6 +497,14 @@ export default function Inventory() {
           item={editingItem}
           onClose={() => setEditingItem(null)}
           onSaved={() => { refetchAll(); setEditingItem(null); }}
+        />
+      )}
+
+      {saleItem && (
+        <SaleModal
+          item={saleItem}
+          onClose={() => setSaleItem(null)}
+          onSuccess={() => { refetchAll(); setSaleItem(null); }}
         />
       )}
     </div>
