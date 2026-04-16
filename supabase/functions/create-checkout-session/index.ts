@@ -32,6 +32,7 @@ serve(async (req) => {
 
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
     const STRIPE_PRICE_ID = Deno.env.get('STRIPE_PRICE_ID')!;
+    const STRIPE_MAX_PRICE_ID = Deno.env.get('STRIPE_MAX_PRICE_ID') || STRIPE_PRICE_ID;
 
     // Ensure profile exists (handles users who signed up before the trigger)
     await serviceClient
@@ -77,9 +78,11 @@ serve(async (req) => {
         .eq('id', user.id);
     }
 
-    // Parse request body for success/cancel URLs
+    // Parse request body for success/cancel URLs and plan
     const body = await req.json().catch(() => ({}));
     const origin = body.origin || 'https://flipquik.com';
+    const plan = body.plan === 'max' ? 'max' : 'pro';
+    const priceId = plan === 'max' ? STRIPE_MAX_PRICE_ID : STRIPE_PRICE_ID;
 
     // Create Checkout Session
     const sessionRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -91,11 +94,12 @@ serve(async (req) => {
       body: new URLSearchParams({
         customer: customerId,
         mode: 'subscription',
-        'line_items[0][price]': STRIPE_PRICE_ID,
+        'line_items[0][price]': priceId,
         'line_items[0][quantity]': '1',
         success_url: `${origin}/Billing?status=success`,
         cancel_url: `${origin}/Billing?status=cancel`,
         'subscription_data[metadata][supabase_user_id]': user.id,
+        'subscription_data[metadata][plan]': plan,
       }),
     });
 

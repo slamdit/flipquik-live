@@ -70,6 +70,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
+    const STRIPE_PRICE_ID = Deno.env.get('STRIPE_PRICE_ID') || '';
+    const STRIPE_MAX_PRICE_ID = Deno.env.get('STRIPE_MAX_PRICE_ID') || '';
+
+    /** Determine plan tier from a Stripe subscription's price ID or metadata. */
+    function resolvePlanTier(sub: Record<string, unknown>): string {
+      // Check metadata first (set during checkout)
+      const metaPlan = (sub.metadata as Record<string, string>)?.plan;
+      if (metaPlan === 'max') return 'max';
+      if (metaPlan === 'pro') return 'pro';
+      // Fall back to price ID comparison
+      const items = sub.items as { data?: Array<{ price?: { id?: string } }> };
+      const priceId = items?.data?.[0]?.price?.id;
+      if (priceId && STRIPE_MAX_PRICE_ID && priceId === STRIPE_MAX_PRICE_ID) return 'max';
+      return 'pro';
+    }
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -79,16 +95,18 @@ serve(async (req) => {
           : null;
 
         if (userId && session.subscription) {
-          // Fetch the subscription to get period end
+          // Fetch the subscription to get period end and price info
           const sub = await stripeGet(session.subscription);
+          const planTier = resolvePlanTier(sub);
           await serviceClient
             .from('profiles')
             .update({
               is_pro: true,
+              plan_tier: planTier,
               stripe_customer_id: session.customer,
               stripe_subscription_id: session.subscription,
               subscription_status: 'active',
-              current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+              current_period_end: new Date((sub.current_period_end as number) * 1000).toISOString(),
             })
             .eq('id', userId);
         }
@@ -102,10 +120,12 @@ serve(async (req) => {
 
         if (userId) {
           const isActive = ['active', 'trialing'].includes(sub.status);
+          const planTier = isActive ? resolvePlanTier(sub) : 'free';
           await serviceClient
             .from('profiles')
             .update({
               is_pro: isActive,
+              plan_tier: planTier,
               subscription_status: sub.status,
               current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
             })
@@ -124,6 +144,7 @@ serve(async (req) => {
             .from('profiles')
             .update({
               is_pro: false,
+              plan_tier: 'free',
               subscription_status: 'canceled',
               stripe_subscription_id: null,
               current_period_end: null,
