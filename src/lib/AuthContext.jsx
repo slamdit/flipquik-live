@@ -8,15 +8,32 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
+    const ensureProfile = async (userId) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+      if (!data) {
+        await supabase
+          .from('profiles')
+          .insert({ id: userId, is_pro: false, subscription_status: 'free' });
+      }
+    };
+
     // Get current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      if (currentUser) await ensureProfile(currentUser.id);
+      setUser(currentUser);
       setIsLoadingAuth(false);
     });
 
     // Keep user in sync with auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      if (currentUser) await ensureProfile(currentUser.id);
+      setUser(currentUser);
     });
 
     return () => subscription.unsubscribe();

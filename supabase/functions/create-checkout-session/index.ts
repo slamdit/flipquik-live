@@ -33,6 +33,11 @@ serve(async (req) => {
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
     const STRIPE_PRICE_ID = Deno.env.get('STRIPE_PRICE_ID')!;
 
+    // Ensure profile exists (handles users who signed up before the trigger)
+    await serviceClient
+      .from('profiles')
+      .upsert({ id: user.id, is_pro: false, subscription_status: 'free' }, { onConflict: 'id', ignoreDuplicates: true });
+
     // Check if user already has a Stripe customer ID
     const { data: profile } = await serviceClient
       .from('profiles')
