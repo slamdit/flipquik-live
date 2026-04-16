@@ -17,6 +17,34 @@ const CONFIDENCE_STYLES = {
   low: 'bg-slate-500 text-white',
 };
 
+const LOADING_MESSAGES = [
+  'Analyzing your item...',
+  'Checking market data...',
+  'Comparing similar items...',
+  'Almost there...',
+];
+
+function EvalLoadingMessages() {
+  const [msgIndex, setMsgIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setMsgIndex(i => (i + 1) % LOADING_MESSAGES.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="bg-white rounded-xl p-8 shadow-sm flex flex-col items-center gap-4 text-center">
+      <div className="w-12 h-12 border-4 border-slate-200 border-t-amber-400 rounded-full animate-spin" />
+      <div>
+        <p className="font-semibold text-slate-900">{LOADING_MESSAGES[msgIndex]}</p>
+        <p className="text-sm text-slate-500 mt-1">Searching market data & sold comps</p>
+      </div>
+    </div>
+  );
+}
+
 export default function QuikEval() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -173,15 +201,7 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
         )}
 
         {/* Evaluating state */}
-        {evaluating && (
-          <div className="bg-white rounded-xl p-8 shadow-sm flex flex-col items-center gap-4 text-center">
-            <div className="w-12 h-12 border-4 border-slate-200 border-t-amber-400 rounded-full animate-spin" />
-            <div>
-              <p className="font-semibold text-slate-900">Analyzing item...</p>
-              <p className="text-sm text-slate-500 mt-1">Searching market data & sold comps</p>
-            </div>
-          </div>
-        )}
+        {evaluating && <EvalLoadingMessages />}
 
         {/* Results */}
         {result && !evaluating && (

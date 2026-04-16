@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Zap, Sparkles, RefreshCw, X, Check, Copy, ShoppingBag, Bookmark } from 'lucide-react';
+import { Zap, Sparkles, RefreshCw, X, Check, Copy, ShoppingBag, Bookmark, Mail, ClipboardCopy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -132,25 +132,39 @@ Return JSON only with exactly these two fields:
   );
 }
 
-// ── Platform Copy Modal (shown after List It) ───────────────────
-const PLATFORMS = [
-  { id: 'ebay', label: 'eBay', color: 'bg-yellow-400 text-slate-900' },
-  { id: 'poshmark', label: 'Poshmark', color: 'bg-red-500 text-white' },
-  { id: 'mercari', label: 'Mercari', color: 'bg-blue-500 text-white' },
-  { id: 'facebook', label: 'Facebook Marketplace', color: 'bg-blue-700 text-white' },
-  { id: 'offerup', label: 'OfferUp', color: 'bg-green-600 text-white' },
-];
+// ── Send Listing Modal (shown after List It) ───────────────────
+function SendListingModal({ title, description, price, brand, category, condition, size, color, storageLocation, photos, onClose }) {
+  const [copied, setCopied] = useState(false);
 
-function PlatformModal({ title, description, price, onClose }) {
-  const [copied, setCopied] = useState(null);
+  const fields = [
+    ['Title', title],
+    ['Description', description],
+    ['Brand', brand],
+    ['Category', category],
+    ['Condition', condition],
+    ['Size', size],
+    ['Color', color],
+    ['List Price', price ? `$${parseFloat(price).toFixed(2)}` : ''],
+    ['Storage Location', storageLocation],
+  ].filter(([, v]) => v);
 
-  const listingText = `${title}\n\n${description}\n\nPrice: $${parseFloat(price || 0).toFixed(2)}`;
+  const formattedText = fields.map(([k, v]) => `${k}: ${v}`).join('\n');
+  const photoUrls = (photos || []).map(p => p.compressedUrl || p.displayUrl || p).filter(Boolean);
+  const fullText = photoUrls.length > 0
+    ? `${formattedText}\n\nPhotos:\n${photoUrls.join('\n')}`
+    : formattedText;
 
-  const copyToClipboard = async (platformId) => {
+  const handleEmail = () => {
+    const subject = encodeURIComponent(`FlipQuik Listing: ${title || 'Item'}`);
+    const body = encodeURIComponent(fullText);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+  };
+
+  const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(listingText);
-      setCopied(platformId);
-      setTimeout(() => setCopied(null), 2000);
+      await navigator.clipboard.writeText(fullText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
       toast.success('Copied to clipboard!');
     } catch {
       toast.error('Copy failed — try selecting the text manually.');
@@ -161,33 +175,35 @@ function PlatformModal({ title, description, price, onClose }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
       <div className="w-full max-w-lg bg-white rounded-t-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-slate-900 text-lg">Post to a Platform</h2>
+          <h2 className="font-bold text-slate-900 text-lg">Send Listing</h2>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <p className="text-sm text-slate-500">Tap a platform to copy your listing text, then paste it in their app.</p>
+        {/* Photo thumbnails */}
+        {photoUrls.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {photoUrls.map((url, i) => (
+              <img key={i} src={url} alt="" className="h-16 w-16 rounded-lg object-cover shrink-0 border border-slate-200" />
+            ))}
+          </div>
+        )}
 
         {/* Listing preview */}
         <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-wrap leading-relaxed border border-slate-200">
-          {listingText}
+          {fullText}
         </div>
 
         <div className="space-y-2">
-          {PLATFORMS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => copyToClipboard(p.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-opacity ${p.color} ${copied === p.id ? 'opacity-70' : ''}`}
-            >
-              <span>{p.label}</span>
-              {copied === p.id
-                ? <Check className="w-4 h-4" />
-                : <Copy className="w-4 h-4 opacity-70" />
-              }
-            </button>
-          ))}
+          <Button onClick={handleEmail} size="lg" className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white">
+            <Mail className="w-4 h-4 mr-2" />
+            Send via Email
+          </Button>
+          <Button onClick={handleCopy} size="lg" variant="outline" className="w-full h-12">
+            {copied ? <Check className="w-4 h-4 mr-2" /> : <ClipboardCopy className="w-4 h-4 mr-2" />}
+            {copied ? 'Copied!' : 'Copy to Clipboard'}
+          </Button>
         </div>
 
         <Button onClick={onClose} size="lg" className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white">
@@ -210,6 +226,9 @@ export default function FlipIt() {
   const [brand, setBrand] = useState(state.brand || '');
   const [category, setCategory] = useState(state.category || '');
   const [condition, setCondition] = useState(state.condition || '');
+  const [size, setSize] = useState(state.size || '');
+  const [color, setColor] = useState(state.color || '');
+  const [storageLocation, setStorageLocation] = useState('');
   const [price, setPrice] = useState(state.suggested_price ?? state.suggested_resale_price ?? '');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [purchasePriceError, setPurchasePriceError] = useState(false);
@@ -218,7 +237,7 @@ export default function FlipIt() {
   const photos = state.photosData || state.photos || [];
 
   const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [showPlatformModal, setShowPlatformModal] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleUseGenerated = ({ title: t, description: d }) => {
@@ -262,6 +281,9 @@ export default function FlipIt() {
         brand: brand.trim() || undefined,
         category: category.trim() || undefined,
         condition: condition.trim() || undefined,
+        size: size.trim() || undefined,
+        color: color.trim() || undefined,
+        storage_location: storageLocation.trim() || undefined,
         internal_notes: internalNotes.trim() || undefined,
         cost: parseFloat(purchasePrice),
         status,
@@ -309,8 +331,8 @@ export default function FlipIt() {
     if (!validatePurchasePrice()) return;
     try {
       await saveItem('listed');
-      toast.success('Listed! Choose a platform below.');
-      setShowPlatformModal(true);
+      toast.success('Listed! Send your listing below.');
+      setShowSendModal(true);
     } catch (err) {
       toast.error(err?.message || 'Failed to save. Try again.');
     }
@@ -395,60 +417,7 @@ export default function FlipIt() {
         )}
 
         <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
-          {/* Title */}
-          <div>
-            <Label htmlFor="title" className="text-sm font-medium text-slate-700">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g., Nike Air Max 90 Size 10"
-              className="h-11 mt-1"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Describe the item honestly..."
-              className="mt-1 min-h-20 text-sm"
-            />
-          </div>
-
-          {/* Brand / Category / Condition */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm font-medium text-slate-700">Brand</Label>
-              <Input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Nike" className="h-10 mt-1 text-sm" />
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-slate-700">Category</Label>
-              <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Shoes" className="h-10 mt-1 text-sm" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm font-medium text-slate-700">Condition</Label>
-              <Input value={condition} onChange={e => setCondition(e.target.value)} placeholder="Good" className="h-10 mt-1 text-sm" />
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-slate-700">List Price ($)</Label>
-              <Input
-                type="number"
-                value={price}
-                onChange={e => setPrice(e.target.value)}
-                placeholder="0.00"
-                className="h-10 mt-1 text-sm"
-              />
-            </div>
-          </div>
-
-          {/* What did you pay — required */}
+          {/* What did you pay — required, FIRST */}
           <div ref={purchasePriceRef}>
             <Label htmlFor="purchasePrice" className="text-sm font-medium text-slate-700">
               What did you pay? <span className="text-red-500">*</span>
@@ -473,10 +442,70 @@ export default function FlipIt() {
             )}
           </div>
 
+          {/* Title */}
+          <div>
+            <Label htmlFor="title" className="text-sm font-medium text-slate-700">Title</Label>
+            <Input
+              id="title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g., Nike Air Max 90 Size 10"
+              className="h-11 mt-1"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Describe the item honestly..."
+              className="mt-1 min-h-20 text-sm"
+            />
+          </div>
+
+          {/* Brand + Category */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Brand</Label>
+              <Input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Nike" className="h-10 mt-1 text-sm" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Category</Label>
+              <Input value={category} onChange={e => setCategory(e.target.value)} placeholder="Shoes" className="h-10 mt-1 text-sm" />
+            </div>
+          </div>
+
+          {/* Condition + Size */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Condition</Label>
+              <Input value={condition} onChange={e => setCondition(e.target.value)} placeholder="Good" className="h-10 mt-1 text-sm" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Size</Label>
+              <Input value={size} onChange={e => setSize(e.target.value)} placeholder="10, M, etc." className="h-10 mt-1 text-sm" />
+            </div>
+          </div>
+
+          {/* Color + Storage Location */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Color</Label>
+              <Input value={color} onChange={e => setColor(e.target.value)} placeholder="Black" className="h-10 mt-1 text-sm" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700">Storage Location</Label>
+              <Input value={storageLocation} onChange={e => setStorageLocation(e.target.value)} placeholder="Bin A3" className="h-10 mt-1 text-sm" />
+            </div>
+          </div>
+
           {/* Internal Notes */}
           <div>
             <Label htmlFor="internalNotes" className="text-sm font-medium text-slate-700">Internal Notes</Label>
-            <p className="text-xs text-slate-400 mt-0.5 mb-1">Private — never sent to listing platforms</p>
+            <p className="text-xs text-slate-400 mt-0.5 mb-1">Private — never shared in listings</p>
             <Textarea
               id="internalNotes"
               value={internalNotes}
@@ -501,13 +530,20 @@ export default function FlipIt() {
         />
       )}
 
-      {showPlatformModal && (
-        <PlatformModal
+      {showSendModal && (
+        <SendListingModal
           title={title}
           description={description}
           price={price}
+          brand={brand}
+          category={category}
+          condition={condition}
+          size={size}
+          color={color}
+          storageLocation={storageLocation}
+          photos={photos}
           onClose={() => {
-            setShowPlatformModal(false);
+            setShowSendModal(false);
             navigate('/');
           }}
         />
