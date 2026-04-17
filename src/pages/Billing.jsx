@@ -72,10 +72,8 @@ export default function Billing() {
   async function handleUpgrade(plan) {
     setCheckoutLoading(plan);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke('create-checkout-session', {
         body: { origin: window.location.origin, plan },
-        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (res.error) throw new Error(res.error.message || JSON.stringify(res.error));
@@ -96,10 +94,8 @@ export default function Billing() {
   async function handleManage() {
     setPortalLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke('create-portal-session', {
         body: { origin: window.location.origin },
-        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (res.error) throw new Error(res.error.message);
