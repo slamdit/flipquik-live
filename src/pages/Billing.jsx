@@ -83,12 +83,12 @@ export default function Billing() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ origin: window.location.origin, plan }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: window.location.origin,
+            plan,
+            accessToken: session.access_token,
+          }),
         }
       );
 
@@ -121,12 +121,11 @@ export default function Billing() {
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ origin: window.location.origin }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: window.location.origin,
+            accessToken: session.access_token,
+          }),
         }
       );
 

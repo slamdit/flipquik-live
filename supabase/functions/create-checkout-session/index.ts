@@ -13,22 +13,19 @@ serve(async (req) => {
   }
 
   try {
+    // Get token from header OR body (header may be stripped by relay)
+    const body = await req.json().catch(() => ({}));
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Missing authorization header');
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error('Not authenticated');
+    const token = authHeader?.replace('Bearer ', '') || body.accessToken;
+    if (!token) throw new Error('Not authenticated');
 
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    const { data: { user }, error: authError } = await serviceClient.auth.getUser(token);
+    if (authError || !user) throw new Error('Invalid auth token');
 
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
     const STRIPE_PRICE_ID = Deno.env.get('STRIPE_PRICE_ID')!;
@@ -78,8 +75,6 @@ serve(async (req) => {
         .eq('id', user.id);
     }
 
-    // Parse request body for success/cancel URLs and plan
-    const body = await req.json().catch(() => ({}));
     const origin = body.origin || 'https://flipquik.com';
     const plan = body.plan === 'max' ? 'max' : 'pro';
     const priceId = plan === 'max' ? STRIPE_MAX_PRICE_ID : STRIPE_PRICE_ID;
