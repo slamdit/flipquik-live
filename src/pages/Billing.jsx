@@ -72,20 +72,36 @@ export default function Billing() {
   async function handleUpgrade(plan) {
     setCheckoutLoading(plan);
     try {
-      const res = await supabase.functions.invoke('create-checkout-session', {
-        body: { origin: window.location.origin, plan },
-      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in again to upgrade.');
+        setCheckoutLoading(null);
+        return;
+      }
 
-      if (res.error) throw new Error(res.error.message || JSON.stringify(res.error));
-      const errorMsg = res.data?.error;
-      if (errorMsg) throw new Error(errorMsg);
-      if (res.data?.url) {
-        window.location.href = res.data.url;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ origin: window.location.origin, plan }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Checkout failed');
+      if (data?.url) {
+        window.location.href = data.url;
       } else {
         throw new Error('No checkout URL returned');
       }
     } catch (err) {
-      toast.error(err.message || 'Failed to start checkout');
+      console.error('Checkout error:', err);
+      toast.error(err.message || 'Could not start checkout. Please try again.');
     } finally {
       setCheckoutLoading(null);
     }
@@ -94,17 +110,35 @@ export default function Billing() {
   async function handleManage() {
     setPortalLoading(true);
     try {
-      const res = await supabase.functions.invoke('create-portal-session', {
-        body: { origin: window.location.origin },
-      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in again to manage subscription.');
+        setPortalLoading(false);
+        return;
+      }
 
-      if (res.error) throw new Error(res.error.message);
-      if (res.data?.url) {
-        window.location.href = res.data.url;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ origin: window.location.origin }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Portal failed');
+      if (data?.url) {
+        window.location.href = data.url;
       } else {
         throw new Error('No portal URL returned');
       }
     } catch (err) {
+      console.error('Portal error:', err);
       toast.error(err.message || 'Failed to open billing portal');
     } finally {
       setPortalLoading(false);
