@@ -78,7 +78,9 @@ export default function Billing() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
-      if (res.error) throw new Error(res.error.message);
+      if (res.error) throw new Error(res.error.message || JSON.stringify(res.error));
+      const errorMsg = res.data?.error;
+      if (errorMsg) throw new Error(errorMsg);
       if (res.data?.url) {
         window.location.href = res.data.url;
       } else {
