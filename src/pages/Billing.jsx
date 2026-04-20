@@ -45,11 +45,7 @@ export default function Billing() {
 
   useEffect(() => {
     const status = searchParams.get('status');
-    if (status === 'success') {
-      toast.success('Subscription activated! Welcome aboard.');
-      setSearchParams({}, { replace: true });
-      loadProfile();
-    } else if (status === 'cancel') {
+    if (status === 'cancel') {
       toast.info('Checkout canceled. No charges were made.');
       setSearchParams({}, { replace: true });
     }

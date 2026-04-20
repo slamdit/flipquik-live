@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { auth, items, sales } from '@/lib/supabase';
 import { FileText, Package, Tag, DollarSign, TrendingUp, Zap, Settings } from 'lucide-react';
+import { toast } from 'sonner';
 
 function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
   const content = (
@@ -21,6 +22,15 @@ function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
 }
 
 export default function Dashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('status') === 'success') {
+      toast.success('Subscription activated! Welcome aboard.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: allItems = [], isLoading } = useQuery({
     queryKey: ['dashboard-items'],
     queryFn: async () => {
