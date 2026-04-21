@@ -179,34 +179,43 @@ export default function SaleModal({ item, onClose, onSuccess }) {
           {/* Cost breakdown row */}
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <Label className="text-xs">Shipping ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={shippingCost}
-                onChange={e => setShippingCost(e.target.value)}
-                className="mt-1 h-10 text-sm"
-              />
+              <Label className="text-xs">Shipping</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={shippingCost}
+                  onChange={e => setShippingCost(e.target.value)}
+                  className="h-10 text-sm pl-6"
+                />
+              </div>
             </div>
             <div>
-              <Label className="text-xs">Platform Fees ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={platformFees}
-                onChange={e => setPlatformFees(e.target.value)}
-                className="mt-1 h-10 text-sm"
-              />
+              <Label className="text-xs">Platform Fees</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={platformFees}
+                  onChange={e => setPlatformFees(e.target.value)}
+                  className="h-10 text-sm pl-6"
+                />
+              </div>
             </div>
             <div>
-              <Label className="text-xs">Other Costs ($)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={otherCosts}
-                onChange={e => setOtherCosts(e.target.value)}
-                className="mt-1 h-10 text-sm"
-              />
+              <Label className="text-xs">Other Costs</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  value={otherCosts}
+                  onChange={e => setOtherCosts(e.target.value)}
+                  className="h-10 text-sm pl-6"
+                />
+              </div>
             </div>
           </div>
 
