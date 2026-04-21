@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Zap, X, RefreshCw } from 'lucide-react';
+import { Zap, X, RefreshCw, Lightbulb, Info, Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { compressImage } from '@/utils/imageCompression';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import PhotoCapture from '@/components/capture/PhotoCapture';
 import EbaySoldComps from '@/components/quikeval/EbaySoldComps';
 import supabase from '@/lib/supabase';
@@ -59,6 +60,10 @@ export default function QuikEval() {
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState(null);
   const [isPro, setIsPro] = useState(false);
+  const [refinedQuery, setRefinedQuery] = useState('');
+  const [editingQuery, setEditingQuery] = useState(false);
+  const [editInput, setEditInput] = useState('');
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   // Check if user is Pro or Max
   useEffect(() => {
@@ -102,6 +107,7 @@ Return JSON with these fields:
 - confidence: "low", "medium", or "high" based on how confidently you identified the item
 - things_to_consider: array of 3-4 short practical tips for a reseller (platform fit, common issues, demand, timing, or specific authentication requirements like "check for authentication papers," "look for serial numbers," "examine for specific hallmarks" if high value is conditional on external verification)
 - notes: 1-2 sentence summary of what you see and why someone would/wouldn't want to flip this. If confidence is low, explain why (e.g., potential counterfeit, too generic, missing key details for identification).
+- ebay_search_query: an optimized search string for finding this exact item's sold listings on eBay. Include the specific model number/variant if identified and use terms eBay sellers commonly use. If you cannot determine the specific model, set this to the same value as item_name.
 
 For books: always identify the specific edition, ISBN, publisher, and printing number. US first printings are often significantly more valuable than later international editions. Never average all editions together.
 
@@ -125,6 +131,7 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
               confidence: { type: 'string' },
               things_to_consider: { type: 'array', items: { type: 'string' } },
               notes: { type: 'string' },
+              ebay_search_query: { type: 'string' },
             },
           },
         },
@@ -159,7 +166,19 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
     setPhotos([]);
     setResult(null);
     setEvaluating(false);
+    setRefinedQuery('');
+    setEditingQuery(false);
+    setNudgeDismissed(false);
   };
+
+  const hasModelNumber = (name) => {
+    if (!name) return false;
+    return /\(.*[A-Z0-9]{4,}.*\)/.test(name) ||
+      /\b(Model|SKU|UPC)\s*[:#]?\s*[A-Z0-9-]{3,}/i.test(name) ||
+      /\b[A-Z]{1,4}[-]?[0-9]{3,}[A-Z0-9-]*\b/.test(name);
+  };
+
+  const searchQuery = refinedQuery || result?.ebay_search_query || result?.item_name;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -182,6 +201,10 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
               uploading={uploading}
               setUploading={setUploading}
             />
+            <p className="flex items-center gap-1.5 text-xs text-slate-400">
+              <Lightbulb className="w-3.5 h-3.5 shrink-0" />
+              Tip: Include the model number or barcode for the most accurate results
+            </p>
             <div>
               <Label htmlFor="itemSpecs" className="text-sm font-medium text-slate-700">Item Specs (optional)</Label>
               <p className="text-xs text-slate-400 mt-0.5 mb-1.5">Add any known details — brand, model, size, condition — to improve accuracy.</p>
@@ -216,17 +239,77 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
             <div className="bg-white rounded-xl p-4 shadow-sm space-y-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
-                  <p className="font-bold text-lg text-slate-900 leading-tight">{result.item_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-bold text-lg text-slate-900 leading-tight">{result.item_name}</p>
+                    <button
+                      onClick={() => {
+                        setEditInput(result.ebay_search_query || result.item_name);
+                        setEditingQuery(true);
+                      }}
+                      className="p-1 text-slate-400 hover:text-slate-600 shrink-0"
+                      title="Refine eBay search"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   {result.brand && <p className="text-sm text-slate-500">{result.brand}</p>}
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold shrink-0 ${CONFIDENCE_STYLES[result.confidence] || CONFIDENCE_STYLES.low}`}>
                   {result.confidence} confidence
                 </span>
               </div>
+
+              {/* Refine search inline editor */}
+              {editingQuery && (
+                <div className="mt-2 space-y-2">
+                  <Input
+                    value={editInput}
+                    onChange={e => setEditInput(e.target.value)}
+                    className="text-sm h-9"
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-slate-400">Edit the product name to find more specific eBay comps</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="h-8 bg-amber-500 hover:bg-amber-600 text-white text-xs"
+                      onClick={() => {
+                        setRefinedQuery(editInput.trim());
+                        setEditingQuery(false);
+                      }}
+                      disabled={!editInput.trim()}
+                    >
+                      Search Again
+                    </Button>
+                    <button
+                      onClick={() => {
+                        setRefinedQuery('');
+                        setEditingQuery(false);
+                      }}
+                      className="text-xs text-slate-400 hover:text-slate-600 underline"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 mt-2 flex-wrap">
                 {result.category && <Badge variant="outline" className="text-xs">{result.category}</Badge>}
                 {result.condition && <Badge variant="outline" className="text-xs">{result.condition}</Badge>}
               </div>
+
+              {/* Model number nudge */}
+              {!nudgeDismissed && !hasModelNumber(result.item_name) && (
+                <div className="flex items-start gap-2 mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                  <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700 flex-1">Want more precise comps? Try scanning the back label or model number.</p>
+                  <button onClick={() => setNudgeDismissed(true)} className="text-blue-300 hover:text-blue-500 shrink-0">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {result.notes && (
                 <p className="text-sm text-slate-600 mt-2 leading-snug">{result.notes}</p>
               )}
@@ -258,7 +341,7 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
             </div>
 
             {/* eBay Sold Comps */}
-            <EbaySoldComps itemName={result.item_name} isPro={isPro} />
+            <EbaySoldComps itemName={searchQuery} isPro={isPro} />
 
             {/* Things to consider */}
             {result.things_to_consider?.length > 0 && (
@@ -307,7 +390,7 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
 
             {/* Re-evaluate */}
             <button
-              onClick={() => { setResult(null); runEvaluation(); }}
+              onClick={() => { setResult(null); setRefinedQuery(''); setNudgeDismissed(false); runEvaluation(); }}
               className="w-full flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-slate-600 py-1"
             >
               <RefreshCw className="w-4 h-4" />

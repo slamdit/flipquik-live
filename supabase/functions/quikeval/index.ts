@@ -56,6 +56,12 @@ CONDITION & ANTIQUES/COLLECTIBLES
 - For antiques, glassware, ceramics, silver, and other collectibles: explicitly note if condition issues such as cloudiness, chips, haziness, crazing, repairs, or wear push the value toward the low end of the range.
 - Do not assign high-end prices to items with visible condition issues unless those issues are irrelevant to value for that category.
 
+EBAY SEARCH QUERY
+- In addition to item_name, return a field called ebay_search_query — an optimized search string for finding this exact item's sold listings on eBay.
+- This should include the specific model number/variant if identified, use terms eBay sellers commonly use in listing titles, and exclude generic words that would broaden results.
+- Optionally include exclusion terms with a minus sign (e.g., '-V2' to exclude a different variant).
+- If you cannot determine the specific model, set ebay_search_query to the same value as item_name.
+
 GENERAL
 - Base all estimates on realistic sold comps from eBay, Poshmark, Mercari, and similar platforms within the past 12 months.
 - Be conservative. Never inflate prices. A wrong high estimate wastes the seller's time and money.`;

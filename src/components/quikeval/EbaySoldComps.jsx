@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, ExternalLink } from 'lucide-react';
+import { Lock, ExternalLink, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import supabase from '@/lib/supabase';
+
+const STOP_WORDS = new Set(['the', 'a', 'an', 'for', 'and', 'with', 'in', 'of', 'to', 'by', 'on', 'or', 'is', 'it', 'at']);
+
+function getMatchQuality(itemName, compTitle) {
+  if (!itemName || !compTitle) return 'similar';
+  const words = itemName.toLowerCase().split(/[\s\-\/,]+/).filter(w => w.length > 1 && !STOP_WORDS.has(w));
+  if (words.length === 0) return 'similar';
+  const titleLower = compTitle.toLowerCase();
+  const matches = words.filter(w => titleLower.includes(w)).length;
+  return matches / words.length > 0.7 ? 'close' : 'similar';
+}
 
 export default function EbaySoldComps({ itemName, isPro }) {
   const [comps, setComps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [searchedQuery, setSearchedQuery] = useState('');
 
   useEffect(() => {
     if (!isPro || !itemName) return;
@@ -14,6 +26,7 @@ export default function EbaySoldComps({ itemName, isPro }) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setSearchedQuery(itemName);
 
     supabase.functions
       .invoke('ebay-sold-comps', { body: { query: itemName } })
@@ -92,6 +105,9 @@ export default function EbaySoldComps({ itemName, isPro }) {
       <div className="bg-slate-900 rounded-xl p-4">
         <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">eBay Sold Comps</p>
         <p className="text-sm text-slate-500">No recent sold listings found.</p>
+        {searchedQuery && (
+          <p className="text-[11px] text-slate-600 italic mt-1">Searched: {searchedQuery}</p>
+        )}
       </div>
     );
   }
@@ -105,6 +121,17 @@ export default function EbaySoldComps({ itemName, isPro }) {
         <p className="text-xs text-slate-500">{comps.length} result{comps.length !== 1 ? 's' : ''}</p>
       </div>
 
+      {/* Disclaimer + searched query */}
+      <div className="space-y-0.5">
+        <p className="flex items-center gap-1 text-[12px] text-slate-500">
+          <Info className="w-3 h-3 shrink-0" />
+          Comps are based on similar eBay listings. Verify the exact model matches your item.
+        </p>
+        {searchedQuery && (
+          <p className="text-[11px] text-slate-600 italic pl-4">Searched: {searchedQuery}</p>
+        )}
+      </div>
+
       {/* Average price */}
       <div className="text-center py-2">
         <p className="text-xs text-slate-400 mb-1">Avg Sold Price</p>
@@ -113,36 +140,44 @@ export default function EbaySoldComps({ itemName, isPro }) {
 
       {/* Comp cards */}
       <div className="space-y-2">
-        {comps.map((comp, i) => (
-          <div key={i} className="bg-slate-800 rounded-lg p-3 flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-white font-medium truncate" title={comp.title}>
-                {comp.title.length > 50 ? comp.title.slice(0, 50) + '...' : comp.title}
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">{comp.condition}</span>
-                {comp.soldDate && (
-                  <span className="text-xs text-slate-500">
-                    {new Date(comp.soldDate).toLocaleDateString()}
-                  </span>
+        {comps.map((comp, i) => {
+          const match = getMatchQuality(itemName, comp.title);
+          return (
+            <div key={i} className="bg-slate-800 rounded-lg p-3 flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-medium truncate" title={comp.title}>
+                  {comp.title.length > 50 ? comp.title.slice(0, 50) + '...' : comp.title}
+                </p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">{comp.condition}</span>
+                  {match === 'close' ? (
+                    <span className="text-xs bg-green-900/50 text-green-400 px-2 py-0.5 rounded-full">Close match</span>
+                  ) : (
+                    <span className="text-xs bg-yellow-900/40 text-yellow-400 px-2 py-0.5 rounded-full">Similar</span>
+                  )}
+                  {comp.soldDate && (
+                    <span className="text-xs text-slate-500">
+                      {new Date(comp.soldDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-green-400 font-semibold text-sm">${comp.price.toFixed(2)}</span>
+                {comp.itemUrl && (
+                  <a
+                    href={comp.itemUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                  >
+                    View <ExternalLink className="w-3 h-3" />
+                  </a>
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className="text-green-400 font-semibold text-sm">${comp.price.toFixed(2)}</span>
-              {comp.itemUrl && (
-                <a
-                  href={comp.itemUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1"
-                >
-                  View <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <p className="text-[10px] text-slate-600 text-center">Powered by eBay</p>
