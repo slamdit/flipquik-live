@@ -91,7 +91,7 @@ ${itemSpecs ? `\nThe user has provided the following known details about the ite
 Your goal: identify the item and provide a conservative, realistic resale evaluation. Be highly skeptical of items that appear to be high value but lack clear authenticity. If an item *could* be high value but requires verification, explain what is needed for confirmation.
 
 Return JSON with these fields:
-- item_name: the most likely specific product name (brand + type + key detail)
+- item_name: the most likely specific product name (brand + model number/SKU + type). ALWAYS include model numbers, SKUs, or variant names if visible in the image — different models have very different resale values
 - brand: brand name if identifiable
 - category: product category (e.g. Clothing, Shoes, Electronics, Toys, etc.)
 - condition: estimated condition from image (Excellent / Good / Fair / Poor)

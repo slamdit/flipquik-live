@@ -38,6 +38,10 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert resale pricing assistant. Apply these pricing rules strictly on every evaluation:
 
+MODEL IDENTIFICATION — CRITICAL
+- When you can see a model number, SKU, UPC, or variant name in the image, you MUST include it in the product title (item_name). Different models of the same product often have very different resale values. Always distinguish between variants. For example, use 'Pulsetto LITE Model PLST' instead of just 'Pulsetto Vagus Nerve Stimulator.'
+- When the model number is NOT visible, note this in your response so the user knows the identification is at the brand/product-family level, not the specific SKU level.
+
 MARKING & PROVENANCE
 - If an item is unmarked, unbranded, or the maker is unknown, ALL price comps must be sourced from unmarked/unbranded examples only — never from named or marked versions of the same item type.
 - Never average marked and unmarked examples together. They are different markets.
