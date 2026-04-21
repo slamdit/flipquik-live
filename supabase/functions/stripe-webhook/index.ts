@@ -89,16 +89,23 @@ serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        const userId = session.subscription
-          ? session.metadata?.supabase_user_id ||
-            (await getUserIdFromCustomer(serviceClient, session.customer))
-          : null;
+        const userId = session.client_reference_id ||
+          session.metadata?.supabase_user_id ||
+          (session.customer ? await getUserIdFromCustomer(serviceClient, session.customer) : null);
+
+        console.log('[stripe-webhook] checkout.session.completed', {
+          client_reference_id: session.client_reference_id,
+          metadata_user_id: session.metadata?.supabase_user_id,
+          customer: session.customer,
+          subscription: session.subscription,
+          resolved_user_id: userId,
+        });
 
         if (userId && session.subscription) {
           // Fetch the subscription to get period end and price info
           const sub = await stripeGet(session.subscription);
-          const planTier = resolvePlanTier(sub);
-          await serviceClient
+          const planTier = session.metadata?.plan || resolvePlanTier(sub);
+          const { error: updateError } = await serviceClient
             .from('profiles')
             .update({
               is_pro: true,
@@ -109,6 +116,16 @@ serve(async (req) => {
               current_period_end: new Date((sub.current_period_end as number) * 1000).toISOString(),
             })
             .eq('id', userId);
+
+          if (updateError) {
+            console.error('[stripe-webhook] profile update failed:', updateError);
+          } else {
+            console.log('[stripe-webhook] profile updated for user:', userId, 'plan:', planTier);
+          }
+        } else {
+          console.warn('[stripe-webhook] checkout.session.completed: no userId or subscription', {
+            userId, subscription: session.subscription,
+          });
         }
         break;
       }
