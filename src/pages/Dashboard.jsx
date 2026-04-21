@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { auth, items, sales } from '@/lib/supabase';
-import { FileText, Package, Tag, DollarSign, TrendingUp, Zap, Settings } from 'lucide-react';
+import { FileText, Package, Tag, DollarSign, TrendingUp, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
@@ -63,14 +63,9 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       <div className="bg-slate-900 text-white px-4 pt-5 pb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-slate-400 text-sm">{greeting}</p>
-            <h1 className="text-2xl font-bold mt-0.5">FlipQuik</h1>
-          </div>
-          <Link to="/Settings" className="p-2 rounded-xl hover:bg-slate-800 transition-colors">
-            <Settings className="w-5 h-5 text-slate-400" />
-          </Link>
+        <div>
+          <p className="text-slate-400 text-sm">{greeting}</p>
+          <h1 className="text-2xl font-bold mt-0.5">FlipQuik</h1>
         </div>
         {!isLoading && (
           <p className="text-slate-400 text-sm mt-1">{allItems.length} items in inventory</p>
