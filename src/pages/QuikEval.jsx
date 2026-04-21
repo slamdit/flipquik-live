@@ -60,17 +60,23 @@ export default function QuikEval() {
   const [result, setResult] = useState(null);
   const [isPro, setIsPro] = useState(false);
 
-  // Check if user is Pro
+  // Check if user is Pro or Max
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase
         .from('profiles')
-        .select('is_pro')
+        .select('is_pro, subscription_status, plan_tier')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
-          if (data?.is_pro) setIsPro(true);
+          if (
+            data?.is_pro ||
+            data?.plan_tier === 'pro' || data?.plan_tier === 'max' ||
+            data?.subscription_status === 'pro' || data?.subscription_status === 'max'
+          ) {
+            setIsPro(true);
+          }
         });
     });
   }, []);
