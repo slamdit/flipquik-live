@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Zap, X, RefreshCw, Lightbulb, Info, Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { compressImage } from '@/utils/imageCompression';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -11,6 +10,14 @@ import PhotoCapture from '@/components/capture/PhotoCapture';
 import EbaySoldComps from '@/components/quikeval/EbaySoldComps';
 import supabase from '@/lib/supabase';
 import { toast } from 'sonner';
+
+// Safely convert AI response values to numbers (handles "$24.99", "24.99", null, etc.)
+function safeNum(val) {
+  if (val == null) return null;
+  if (typeof val === 'number') return val;
+  const n = parseFloat(String(val).replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? null : n;
+}
 
 const CONFIDENCE_STYLES = {
   high: 'bg-green-500 text-white',
@@ -138,6 +145,15 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
       });
 
       if (fnError) throw fnError;
+      if (!evalResult || evalResult.error) throw new Error(evalResult?.error || 'Empty response');
+
+      // Normalize price fields — AI may return strings like "$24.99" instead of numbers
+      evalResult.resale_low = safeNum(evalResult.resale_low);
+      evalResult.resale_high = safeNum(evalResult.resale_high);
+      evalResult.suggested_resale_price = safeNum(evalResult.suggested_resale_price);
+      evalResult.retail_price = safeNum(evalResult.retail_price);
+      if (!Array.isArray(evalResult.things_to_consider)) evalResult.things_to_consider = [];
+
       setResult(evalResult);
     } catch (err) {
       toast.error('Evaluation failed. Try again.');
@@ -154,9 +170,9 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
         category: result.category || '',
         condition: result.condition || '',
         notes: result.notes || '',
-        suggested_price: result.suggested_resale_price,
-        resale_low: result.resale_low,
-        resale_high: result.resale_high,
+        suggested_price: result.suggested_resale_price ?? null,
+        resale_low: result.resale_low ?? null,
+        resale_high: result.resale_high ?? null,
         photosData: photos,
       },
     });
@@ -318,24 +334,24 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
             {/* Pricing */}
             <div className="bg-slate-900 text-white rounded-xl p-4 space-y-3">
               <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Resale Estimate</p>
-              {result.retail_price && (
+              {result.retail_price != null && (
                 <div>
                   <p className="text-xs text-slate-400">Retail Price</p>
-                  <p className="text-lg font-semibold">${result.retail_price?.toFixed(2)}</p>
+                  <p className="text-lg font-semibold">${result.retail_price.toFixed(2)}</p>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs text-slate-400">Resale Low</p>
-                  <p className="text-base font-semibold">${result.resale_low?.toFixed(2)}</p>
+                  <p className="text-base font-semibold">{result.resale_low != null ? `$${result.resale_low.toFixed(2)}` : '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Resale High</p>
-                  <p className="text-base font-semibold">${result.resale_high?.toFixed(2)}</p>
+                  <p className="text-base font-semibold">{result.resale_high != null ? `$${result.resale_high.toFixed(2)}` : '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-400">Suggested</p>
-                  <p className="text-base font-semibold text-amber-400">${result.suggested_resale_price?.toFixed(2)}</p>
+                  <p className="text-base font-semibold text-amber-400">{result.suggested_resale_price != null ? `$${result.suggested_resale_price.toFixed(2)}` : '—'}</p>
                 </div>
               </div>
             </div>
