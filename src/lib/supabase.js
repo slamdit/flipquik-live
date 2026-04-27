@@ -127,12 +127,15 @@ export const storage = {
       .from('item-photos')
       .getPublicUrl(fileName);
 
-    return publicUrl;
+    // Returns an object so callers can persist storage_path on item_photos.
+    return { publicUrl, path: fileName };
   },
 
-  deletePhoto: async (url) => {
-    // Extract path from full URL
-    const path = url.split('/item-photos/')[1];
+  deletePhoto: async (urlOrPath) => {
+    if (!urlOrPath) return;
+    const path = urlOrPath.includes('/item-photos/')
+      ? urlOrPath.split('/item-photos/')[1]
+      : urlOrPath;
     if (!path) return;
     const { error } = await supabase.storage.from('item-photos').remove([path]);
     if (error) console.error('Delete photo error:', error);

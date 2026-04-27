@@ -60,11 +60,12 @@ const CapturePhotoManager = forwardRef(function CapturePhotoManager(
       const newPhotos = await Promise.all(
         files.map(async (file) => {
           const compressed = await compressImage(file);
-          const file_url = await storage.uploadPhoto(compressed, userId);
+          const { publicUrl: file_url, path: storagePath } = await storage.uploadPhoto(compressed, userId);
           return {
             originalFile: file,
             compressedUrl: file_url,
             displayUrl: file_url,
+            storagePath,
             isCover: false,
           };
         })

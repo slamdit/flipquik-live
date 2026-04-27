@@ -51,7 +51,7 @@ async function uploadToSupabase(file) {
     .from('item-photos')
     .getPublicUrl(fileName);
 
-  return publicUrl;
+  return { publicUrl, path: fileName };
 }
 
 export default function PhotoCapture({ photos, setPhotos, uploading, setUploading }) {
@@ -73,12 +73,12 @@ export default function PhotoCapture({ photos, setPhotos, uploading, setUploadin
           const compressed = await compressImage(file);
           try {
             // Upload compressed file to Supabase
-            const uploadedUrl = await uploadToSupabase(compressed.file);
-            return { originalFile: file, compressedUrl: uploadedUrl, displayUrl: uploadedUrl, base64: compressed.base64 };
+            const { publicUrl: uploadedUrl, path: storagePath } = await uploadToSupabase(compressed.file);
+            return { originalFile: file, compressedUrl: uploadedUrl, displayUrl: uploadedUrl, storagePath, base64: compressed.base64 };
           } catch (uploadErr) {
             // If upload fails, still show the photo locally so user doesn't lose it
             console.warn('Upload failed, using local preview:', uploadErr);
-            return { originalFile: file, compressedUrl: localUrl, displayUrl: localUrl, base64: compressed.base64 };
+            return { originalFile: file, compressedUrl: localUrl, displayUrl: localUrl, storagePath: null, base64: compressed.base64 };
           }
         })
       );

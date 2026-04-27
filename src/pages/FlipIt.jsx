@@ -298,10 +298,18 @@ export default function FlipIt() {
             const url = p.compressedUrl || p.displayUrl;
             if (!url) return Promise.resolve();
             return itemPhotosDb.create({
+              user_id: userId,
               item_id: item.id,
+              // Legacy columns — still read by EditItemModal.
               original_photo: url,
-              sort_order: i,
               is_cover: i === 0,
+              // Phase 1A columns.
+              public_url: url,
+              storage_path: p.storagePath || null,
+              sort_order: i,
+              is_primary: i === 0,
+              photo_type: 'listing',
+              source: 'upload',
             });
           })
         ).catch(photoErr => console.error('[FlipIt] photo save failed:', photoErr));
