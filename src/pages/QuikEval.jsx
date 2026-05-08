@@ -144,7 +144,22 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
         },
       });
 
-      if (fnError) throw fnError;
+      if (fnError) {
+        // Surface 429 rate-limit responses with a friendly toast instead of generic error
+        const ctx = fnError.context;
+        if (ctx && typeof ctx.json === 'function') {
+          try {
+            const body = await ctx.json();
+            if (ctx.status === 429 || body?.error === 'rate_limit_exceeded') {
+              toast.error(body?.message || 'Daily QuikEval limit reached. Try again later.');
+              return;
+            }
+          } catch {
+            // body wasn't JSON — fall through to generic error
+          }
+        }
+        throw fnError;
+      }
       if (!evalResult || evalResult.error) throw new Error(evalResult?.error || 'Empty response');
 
       // Normalize price fields — AI may return strings like "$24.99" instead of numbers
