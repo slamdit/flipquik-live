@@ -164,14 +164,12 @@ function WhyThisExists() {
     <section className="py-24 bg-white">
       <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-5 gap-12 items-center">
         <div className="md:col-span-2">
-          <div className="aspect-square rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
-            <div className="text-center px-6">
-              <p className="text-sm">
-                Founder photo goes here.<br />
-                Or top-down hands-only shot.
-              </p>
-            </div>
-          </div>
+          <img
+            src="/sally-founder.jpg"
+            alt="Sally, founder of FlipQuik"
+            className="aspect-square w-full rounded-2xl object-cover shadow-sm"
+            loading="lazy"
+          />
         </div>
         <div className="md:col-span-3">
           <p className={`text-xs tracking-widest uppercase font-semibold ${BRAND.text}`}>
