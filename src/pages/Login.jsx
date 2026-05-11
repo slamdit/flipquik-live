@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { auth } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 export default function Login() {
+  const [searchParams] = useSearchParams();
+  const comebackFromUrl = searchParams.get('comeback') === '1';
+
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [claimingComeback, setClaimingComeback] = useState(comebackFromUrl);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -20,7 +25,11 @@ export default function Login() {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        await auth.signUp(email, password, fullName);
+        // claiming_comeback is read by the handle_new_user trigger, which
+        // sets profiles.comeback_plan_active + comeback_plan_started_at at
+        // row creation. See migration 20260511190000_add_comeback_plan_fields.
+        const extraMetadata = claimingComeback ? { claiming_comeback: true } : {};
+        await auth.signUp(email, password, fullName, extraMetadata);
         toast.success('Account created! Check your email to confirm, then sign in.');
         setMode('signin');
       } else {
@@ -105,6 +114,23 @@ export default function Login() {
               minLength={6}
             />
           </div>
+
+          {mode === 'signup' && (
+            <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <Checkbox
+                id="comeback-claim"
+                checked={claimingComeback}
+                onCheckedChange={(checked) => setClaimingComeback(checked === true)}
+                className="mt-0.5"
+              />
+              <label htmlFor="comeback-claim" className="text-sm text-slate-700 cursor-pointer">
+                <span className="font-medium">I'm claiming this through The Comeback Plan</span>
+                <span className="block text-xs text-slate-500 mt-0.5">
+                  90 days of FlipQuik Pro free for recently laid-off folks. Honor system — no proof required.
+                </span>
+              </label>
+            </div>
+          )}
 
           <Button
             type="submit"

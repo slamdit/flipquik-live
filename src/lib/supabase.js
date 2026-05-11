@@ -20,11 +20,11 @@ export const auth = {
     return user;
   },
 
-  signUp: async (email, password, fullName) => {
+  signUp: async (email, password, fullName, extraMetadata = {}) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } }
+      options: { data: { full_name: fullName, ...extraMetadata } }
     });
     if (error) throw error;
     return data;

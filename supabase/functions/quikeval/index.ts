@@ -49,20 +49,31 @@ serve(async (req) => {
     });
 
     // ── Determine tier-specific limit ──────────────────────────────────
-    // Mirrors the Pro/Max detection in src/pages/QuikEval.jsx
+    // Mirrors the Pro/Max detection in src/lib/proStatus.js: paid Stripe
+    // Pro/Max OR active 90-day Comeback grant both unlock the Pro cap.
     const { data: profile } = await adminClient
       .from('profiles')
-      .select('is_pro, plan_tier, subscription_status')
+      .select('is_pro, plan_tier, subscription_status, comeback_plan_active, comeback_plan_started_at')
       .eq('id', user.id)
       .maybeSingle();
 
-    const isPro = !!(
+    const isPaidPro = !!(
       profile?.is_pro ||
       profile?.plan_tier === 'pro' || profile?.plan_tier === 'max' ||
       profile?.subscription_status === 'pro' || profile?.subscription_status === 'max'
     );
-    const limit = isPro ? PRO_LIMIT : FREE_LIMIT;
-    const tier = isPro ? 'pro' : 'free';
+
+    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+    const comebackStartedAt = profile?.comeback_plan_started_at
+      ? new Date(profile.comeback_plan_started_at).getTime()
+      : NaN;
+    const isComebackPro = !!profile?.comeback_plan_active
+      && !Number.isNaN(comebackStartedAt)
+      && (Date.now() - comebackStartedAt) < ninetyDaysMs;
+
+    const effectivePro = isPaidPro || isComebackPro;
+    const limit = effectivePro ? PRO_LIMIT : FREE_LIMIT;
+    const tier = effectivePro ? 'pro' : 'free';
 
     // ── Rate-limit check (rolling 24h window) ──────────────────────────
     const windowStart = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();

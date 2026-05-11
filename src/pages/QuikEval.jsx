@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import PhotoCapture from '@/components/capture/PhotoCapture';
 import EbaySoldComps from '@/components/quikeval/EbaySoldComps';
 import supabase from '@/lib/supabase';
+import { isProActive } from '@/lib/proStatus';
 import { toast } from 'sonner';
 
 // Safely convert AI response values to numbers (handles "$24.99", "24.99", null, etc.)
@@ -72,23 +73,18 @@ export default function QuikEval() {
   const [editInput, setEditInput] = useState('');
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
-  // Check if user is Pro or Max
+  // Check if user is Pro-entitled — paid Stripe Pro/Max OR active Comeback window.
+  // Routed through isProActive() so the Comeback honor-system grant is honored.
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase
         .from('profiles')
-        .select('is_pro, subscription_status, plan_tier')
+        .select('is_pro, subscription_status, plan_tier, comeback_plan_active, comeback_plan_started_at')
         .eq('id', user.id)
         .single()
         .then(({ data }) => {
-          if (
-            data?.is_pro ||
-            data?.plan_tier === 'pro' || data?.plan_tier === 'max' ||
-            data?.subscription_status === 'pro' || data?.subscription_status === 'max'
-          ) {
-            setIsPro(true);
-          }
+          if (isProActive(data)) setIsPro(true);
         });
     });
   }, []);
