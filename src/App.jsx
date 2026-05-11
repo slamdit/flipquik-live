@@ -23,6 +23,8 @@ import ActionQueue from '@/pages/ActionQueue';
 import MarketplaceConnections from '@/pages/MarketplaceConnections';
 import PlatformTemplates from '@/pages/PlatformTemplates';
 import Billing from '@/pages/Billing';
+import Landing from '@/pages/Landing';
+import Comeback from '@/pages/Comeback';
 
 const AppRoutes = () => {
   const { user, isLoadingAuth } = useAuth();
@@ -35,12 +37,15 @@ const AppRoutes = () => {
     );
   }
 
-  // Not logged in — only /login is accessible
+  // Not logged in — public marketing site + /login
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/comeback" element={<Comeback />} />
         <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Anything unknown for a logged-out visitor goes to the landing page */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
@@ -69,6 +74,9 @@ const AppRoutes = () => {
           <Route path="/MarketplaceConnections" element={<MarketplaceConnections />} />
           <Route path="/PlatformTemplates" element={<PlatformTemplates />} />
           <Route path="/Billing" element={<Billing />} />
+          {/* /comeback is intentionally NOT mounted in the logged-in branch:
+             it renders its own public nav, which would stack with TopNav.
+             Logged-in users can still share the URL externally. */}
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </div>
