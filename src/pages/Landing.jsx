@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Check,
@@ -9,12 +9,9 @@ import {
   Package,
   FileText,
   Zap,
-  Mail,
   Heart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import supabase from '@/lib/supabase';
 
 /**
  * FlipQuik public landing page.
@@ -27,9 +24,8 @@ import supabase from '@/lib/supabase';
  *   - Founder story Version B (fuller, conversion-driver version)
  *   - Pricing card shows Pro only; Max is hidden until auto-post ships
  *   - Trust/social-proof section is rendered as a hidden div, ready to switch on
- *   - Email capture writes to the public.leads table (RLS allows anon inserts).
- *     Welcome-sequence delivery is a separate ESP step — wire Klaviyo /
- *     Mailchimp / ConvertKit to poll or webhook against `leads` when ready.
+ *   - Free-resources delivery is manual: the CTA is a mailto: link to
+ *     flipquik.social@gmail.com — Sally replies personally with both files.
  */
 
 // One-line brand-color knob. Swap "emerald" for your exact Tailwind brand palette
@@ -372,50 +368,6 @@ function WhatItDoes() {
 /* ─────────────────── Section 5: Free Resources (Lead Magnet) ────────────── */
 
 function FreeResources() {
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleLeadCapture = async (e) => {
-    e.preventDefault();
-    // Basic email validation
-    const trimmed = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      toast.error('Please enter a valid email address.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      // Inserts into public.leads. RLS on the table allows anon inserts but
-      // blocks anon reads, so the email goes to the DB safely.
-      // The actual welcome-sequence emails go out from your ESP (Klaviyo /
-      // Mailchimp / ConvertKit), which should be wired to read from this
-      // table on a schedule or via a webhook trigger.
-      const { error } = await supabase
-        .from('leads')
-        .insert({ email: trimmed, source: 'landing-page-playbook' });
-
-      if (error) {
-        // Postgres unique-violation code = duplicate email.
-        // Treat as a soft success — they're already on the list.
-        if (error.code === '23505') {
-          toast.success("You're already on the list — check your inbox for the guide.");
-          setEmail('');
-          return;
-        }
-        throw error;
-      }
-
-      toast.success("On its way — check your inbox in a minute.");
-      setEmail('');
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('Lead capture error', err);
-      toast.error("Couldn't send the guide. Try again in a sec?");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <section id="free-resources" className={`py-24 ${BRAND.bgSoft}`}>
       <div className="max-w-5xl mx-auto px-6 text-center">
@@ -441,34 +393,16 @@ function FreeResources() {
           />
         </div>
 
-        <form
-          onSubmit={handleLeadCapture}
-          className="mt-12 max-w-xl mx-auto flex flex-col sm:flex-row gap-3"
-        >
-          <label htmlFor="lead-email" className="sr-only">Email address</label>
-          <div className="flex-1 relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              id="lead-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Where should we send them?"
-              className={`w-full pl-11 pr-4 py-3 rounded-md border border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 ${BRAND.ring} focus:border-transparent`}
-              required
-              autoComplete="email"
-            />
-          </div>
-          <Button
-            type="submit"
-            disabled={submitting}
-            className={`${BRAND.bg} ${BRAND.bgHover} text-white px-6 py-3`}
+        <div className="mt-12 flex justify-center">
+          <a
+            href="mailto:flipquik.social@gmail.com?subject=Playbook%20%2B%20Tracker%20please"
+            className={`inline-flex items-center justify-center ${BRAND.bg} ${BRAND.bgHover} text-white font-semibold px-6 py-3 rounded-md`}
           >
-            {submitting ? 'Sending…' : 'Send me both →'}
-          </Button>
-        </form>
-        <p className="mt-3 text-xs text-slate-500">
-          One email gets you both. No spam. Unsubscribe anytime.
+            Email me for the Playbook + Tracker &rarr;
+          </a>
+        </div>
+        <p className="mt-3 text-sm text-slate-600">
+          Personal reply, usually within a day.
         </p>
       </div>
     </section>
