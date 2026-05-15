@@ -191,6 +191,7 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
 
   const handleSkip = () => {
     setPhotos([]);
+    setItemSpecs('');
     setResult(null);
     setEvaluating(false);
     setRefinedQuery('');
