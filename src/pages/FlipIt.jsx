@@ -291,7 +291,10 @@ export default function FlipIt() {
         updated_at: new Date().toISOString(),
       });
 
-      // Save photo records — non-blocking
+      // Save photo records — non-blocking but surface failures via toast instead
+      // of silently swallowing. Pre-2026-05-19 swallow caused clipped items to
+      // ship with zero item_photos rows; cover thumbnails came from
+      // items.primary_photo_url alone, breaking the photo-edit flow.
       if (photos.length > 0) {
         Promise.all(
           photos.map((p, i) => {
@@ -300,6 +303,8 @@ export default function FlipIt() {
             return itemPhotosDb.create({
               user_id: userId,
               item_id: item.id,
+              // photo_url is a legacy NOT NULL column not in any migration file.
+              photo_url: url,
               // Legacy columns — still read by EditItemModal.
               original_photo: url,
               is_cover: i === 0,
@@ -312,7 +317,10 @@ export default function FlipIt() {
               source: 'upload',
             });
           })
-        ).catch(photoErr => console.error('[FlipIt] photo save failed:', photoErr));
+        ).catch(photoErr => {
+          console.error('[FlipIt] photo save failed:', photoErr);
+          toast.error('Photos failed to save — open the item in My Items to retry.');
+        });
       }
 
       return item;

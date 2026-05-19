@@ -213,6 +213,8 @@ function ClipPhotoGrid({ itemId, photos, onChange }) {
         const row = await itemPhotosDb.create({
           user_id:       userId,
           item_id:       itemId,
+          // photo_url is a legacy NOT NULL column not in any migration file — must be set.
+          photo_url:      publicUrl,
           original_photo: publicUrl,
           is_cover:       isCover,
           public_url:     publicUrl,
@@ -431,20 +433,54 @@ export default function EditItemModal({ item, onClose, onSaved }) {
   const [saving,        setSaving]        = useState(false);
   const [deleting,      setDeleting]      = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
-  const [photos,        setPhotos]        = useState(
-    item.primary_photo_url ? [{ original_photo: item.primary_photo_url, is_cover: true }] : []
-  );
+  const [photos,        setPhotos]        = useState([]);
 
+  // Fetch real item_photos rows. If none exist but the item has a primary_photo_url
+  // (legacy clips from when FlipIt's insert silently failed), backfill a real row
+  // so ClipPhotoGrid always operates on records with a database id.
   useEffect(() => {
-    supabase
-      .from('item_photos')
-      .select('*')
-      .eq('item_id', item.id)
-      .order('sort_order', { ascending: true })
-      .then(({ data }) => {
-        if (data && data.length > 0) setPhotos(data);
-      });
-  }, [item.id]);
+    (async () => {
+      const { data } = await supabase
+        .from('item_photos')
+        .select('*')
+        .eq('item_id', item.id)
+        .order('sort_order', { ascending: true });
+
+      if (data && data.length > 0) {
+        setPhotos(data);
+        return;
+      }
+
+      if (!item.primary_photo_url) {
+        setPhotos([]);
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id || item.user_id;
+        if (!userId) { setPhotos([]); return; }
+        const url = item.primary_photo_url;
+        const row = await itemPhotosDb.create({
+          user_id:        userId,
+          item_id:        item.id,
+          photo_url:      url,
+          original_photo: url,
+          is_cover:       true,
+          public_url:     url,
+          storage_path:   null,
+          sort_order:     0,
+          is_primary:     true,
+          photo_type:     'listing',
+          source:         'backfill',
+        });
+        setPhotos([row]);
+      } catch (err) {
+        console.error('[EditItemModal] backfill failed:', err);
+        setPhotos([]);
+      }
+    })();
+  }, [item.id, item.primary_photo_url, item.user_id]);
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
