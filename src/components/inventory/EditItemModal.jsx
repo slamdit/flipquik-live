@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Camera, Sparkles, RefreshCw, Check, Mail, ClipboardCopy } from 'lucide-react';
+import { X, Trash2, Sparkles, RefreshCw, Check, Mail, ClipboardCopy, Plus, Star, GripVertical, Loader2 } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/lib/supabase';
+import { supabase, storage, itemPhotos as itemPhotosDb, items as itemsDb } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 // ── AI Generate Listing (same logic as FlipIt page) ─────────────
@@ -184,6 +185,234 @@ function SendListingModal({ form, photos, onClose }) {
   );
 }
 
+// ── Editable photo grid for clipped-item edit (add / delete / reorder) ────
+function ClipPhotoGrid({ itemId, photos, onChange }) {
+  const [uploading, setUploading]   = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const handleAdd = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('Not signed in');
+      const userId = session.user.id;
+
+      const startOrder = photos.length > 0
+        ? Math.max(...photos.map(p => p.sort_order ?? 0)) + 1
+        : 0;
+      const firstUpload = photos.length === 0;
+
+      const created = [];
+      for (let i = 0; i < files.length; i++) {
+        const { publicUrl, path } = await storage.uploadPhoto(files[i], userId);
+        const isCover = firstUpload && i === 0;
+        const row = await itemPhotosDb.create({
+          user_id:       userId,
+          item_id:       itemId,
+          original_photo: publicUrl,
+          is_cover:       isCover,
+          public_url:     publicUrl,
+          storage_path:   path,
+          sort_order:     startOrder + i,
+          is_primary:     isCover,
+          photo_type:     'listing',
+          source:         'upload',
+        });
+        created.push(row);
+        if (isCover) await itemsDb.update(itemId, { primary_photo_url: publicUrl });
+      }
+      onChange([...photos, ...created]);
+      toast.success(files.length > 1 ? `${files.length} photos added` : 'Photo added');
+    } catch (err) {
+      console.error('[ClipPhotoGrid] add failed:', err);
+      toast.error(err?.message || 'Failed to add photo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (photo) => {
+    if (!window.confirm('Delete this photo?')) return;
+    setDeletingId(photo.id);
+    try {
+      await itemPhotosDb.delete(photo.id);
+      await storage.deletePhoto(photo.storage_path || photo.public_url || photo.original_photo);
+
+      const remaining = photos.filter(p => p.id !== photo.id);
+      const wasCover = photo.is_cover || photo.is_primary;
+      if (wasCover) {
+        if (remaining.length > 0) {
+          const next = remaining[0];
+          await itemPhotosDb.update(next.id, { is_cover: true, is_primary: true });
+          await itemsDb.update(itemId, { primary_photo_url: next.public_url || next.original_photo });
+          remaining[0] = { ...next, is_cover: true, is_primary: true };
+        } else {
+          await itemsDb.update(itemId, { primary_photo_url: null });
+        }
+      }
+      onChange(remaining);
+      toast.success('Photo deleted');
+    } catch (err) {
+      console.error('[ClipPhotoGrid] delete failed:', err);
+      toast.error('Failed to delete photo');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleSetCover = async (photo) => {
+    if (photo.is_cover || photo.is_primary) return;
+    try {
+      const current = photos.find(p => p.is_cover || p.is_primary);
+      if (current) await itemPhotosDb.update(current.id, { is_cover: false, is_primary: false });
+      await itemPhotosDb.update(photo.id, { is_cover: true, is_primary: true });
+      await itemsDb.update(itemId, { primary_photo_url: photo.public_url || photo.original_photo });
+      onChange(photos.map(p => ({
+        ...p,
+        is_cover:   p.id === photo.id,
+        is_primary: p.id === photo.id,
+      })));
+      toast.success('Cover photo updated');
+    } catch (err) {
+      console.error('[ClipPhotoGrid] set cover failed:', err);
+      toast.error('Failed to update cover');
+    }
+  };
+
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return;
+    const from = result.source.index;
+    const to   = result.destination.index;
+    if (from === to) return;
+
+    const reordered = Array.from(photos);
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+
+    // First photo wins cover — keep that invariant so listing thumbnail follows position.
+    const withCover = reordered.map((p, i) => ({ ...p, is_cover: i === 0, is_primary: i === 0 }));
+    onChange(withCover);
+
+    try {
+      await Promise.all(withCover.map((p, i) =>
+        itemPhotosDb.update(p.id, { sort_order: i, is_cover: i === 0, is_primary: i === 0 })
+      ));
+      const coverUrl = withCover[0].public_url || withCover[0].original_photo;
+      await itemsDb.update(itemId, { primary_photo_url: coverUrl });
+    } catch (err) {
+      console.error('[ClipPhotoGrid] reorder persist failed:', err);
+      toast.error('Reorder saved locally but failed to sync');
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="clip-photos" direction="horizontal">
+          {(dropProvided) => (
+            <div
+              ref={dropProvided.innerRef}
+              {...dropProvided.droppableProps}
+              className="flex gap-2 overflow-x-auto pb-1"
+            >
+              {photos.map((p, i) => (
+                <Draggable key={p.id} draggableId={String(p.id)} index={i}>
+                  {(dragProvided, snapshot) => (
+                    <div
+                      ref={dragProvided.innerRef}
+                      {...dragProvided.draggableProps}
+                      className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border ${snapshot.isDragging ? 'border-blue-400 shadow-lg' : 'border-slate-200'}`}
+                    >
+                      <img
+                        src={p.public_url || p.original_photo}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+
+                      {(p.is_cover || p.is_primary || i === 0) && (
+                        <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-slate-900/80 text-white text-[10px] rounded-full leading-tight">
+                          Cover
+                        </div>
+                      )}
+
+                      {/* Drag handle — tap-and-hold to reorder */}
+                      <div
+                        {...dragProvided.dragHandleProps}
+                        className="absolute top-0.5 left-0.5 bg-slate-900/70 rounded-full p-1 text-white touch-none"
+                        title="Drag to reorder"
+                      >
+                        <GripVertical className="w-3 h-3" />
+                      </div>
+
+                      {/* Set-as-cover */}
+                      {!(p.is_cover || p.is_primary) && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetCover(p)}
+                          className="absolute top-0.5 right-7 bg-amber-400 rounded-full p-1 hover:bg-amber-500"
+                          title="Set as cover"
+                        >
+                          <Star className="w-3 h-3 text-white" />
+                        </button>
+                      )}
+
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p)}
+                        disabled={deletingId === p.id}
+                        className="absolute top-0.5 right-0.5 bg-red-500 rounded-full p-1 hover:bg-red-600 disabled:opacity-60"
+                        title="Delete photo"
+                      >
+                        {deletingId === p.id
+                          ? <Loader2 className="w-3 h-3 text-white animate-spin" />
+                          : <Trash2 className="w-3 h-3 text-white" />
+                        }
+                      </button>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {dropProvided.placeholder}
+
+              {/* Add-photo tile */}
+              <label className="shrink-0 w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-slate-400 bg-slate-50 hover:bg-slate-100 transition-colors">
+                {uploading
+                  ? <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                  : <>
+                      <Plus className="w-5 h-5 text-slate-400" />
+                      <span className="text-[10px] text-slate-500 mt-0.5">Add photo</span>
+                    </>
+                }
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  className="hidden"
+                  onChange={handleAdd}
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+
+      {photos.length === 0 && !uploading && (
+        <p className="text-xs text-slate-400 mt-1">Tap “Add photo” to capture brand labels, condition shots, or tags.</p>
+      )}
+      {photos.length > 0 && (
+        <p className="text-xs text-slate-400 mt-1">Drag the handle to reorder · First photo becomes the cover.</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main Edit Item Modal ────────────────────────────────────────
 export default function EditItemModal({ item, onClose, onSaved }) {
   const [form, setForm] = useState({
@@ -317,30 +546,13 @@ export default function EditItemModal({ item, onClose, onSaved }) {
             />
           </div>
 
-          {/* Photo strip */}
-          {photos.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
-              {photos.map((p, i) => (
-                <div key={p.id || i} className="relative shrink-0">
-                  <img
-                    src={p.original_photo}
-                    alt=""
-                    className="w-20 h-20 object-cover rounded-xl border border-slate-200"
-                  />
-                  {(p.is_cover || i === 0) && (
-                    <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-slate-900/80 text-white text-[10px] rounded-full leading-tight">
-                      Cover
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-20 rounded-xl bg-slate-100 mb-4 text-slate-400 gap-2 text-sm">
-              <Camera className="w-4 h-4" />
-              No photos
-            </div>
-          )}
+          {/* Photo grid — add / delete / reorder. Persists immediately to Supabase;
+              parent list refetches on modal close so primary_photo_url thumbnails update. */}
+          <ClipPhotoGrid
+            itemId={item.id}
+            photos={photos}
+            onChange={setPhotos}
+          />
 
           <div className="space-y-3">
             <div>

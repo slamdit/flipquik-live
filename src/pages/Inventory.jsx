@@ -154,15 +154,16 @@ function ItemCard({ item, onEdit, onDelete, onMarkFlipped }) {
         )}
       </div>
 
-      {/* Delete */}
+      {/* Delete — sized for thumb-tap in the field (Change 3: discoverability). */}
       <button
         onClick={handleDelete}
         disabled={deleting}
-        className="shrink-0 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors self-start mt-0.5"
+        aria-label={`Delete ${itemName(item)}`}
+        className="shrink-0 self-center p-2.5 text-red-500 bg-red-50 hover:bg-red-100 active:bg-red-200 border border-red-200 rounded-lg transition-colors disabled:opacity-60"
       >
         {deleting
-          ? <div className="w-4 h-4 border-2 border-slate-300 border-t-red-400 rounded-full animate-spin" />
-          : <Trash2 className="w-4 h-4" />
+          ? <div className="w-5 h-5 border-2 border-red-200 border-t-red-500 rounded-full animate-spin" />
+          : <Trash2 className="w-5 h-5" />
         }
       </button>
     </div>
@@ -495,7 +496,7 @@ export default function Inventory() {
       {editingItem && (
         <EditItemModal
           item={editingItem}
-          onClose={() => setEditingItem(null)}
+          onClose={() => { refetchAll(); setEditingItem(null); }}
           onSaved={() => { refetchAll(); setEditingItem(null); }}
         />
       )}
