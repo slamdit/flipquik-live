@@ -335,7 +335,7 @@ function ClipPhotoGrid({ itemId, photos, onChange }) {
                         className="w-full h-full object-cover"
                       />
 
-                      {(p.is_cover || p.is_primary || i === 0) && (
+                      {(p.is_cover || p.is_primary) && (
                         <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-slate-900/80 text-white text-[10px] rounded-full leading-tight">
                           Cover
                         </div>
