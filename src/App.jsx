@@ -5,6 +5,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { EvalQueueProvider } from '@/lib/EvalQueueContext';
 import TopNav from '@/components/TopNav';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
@@ -50,9 +51,12 @@ const AppRoutes = () => {
     );
   }
 
-  // Logged in — full app
+  // Logged in — full app. EvalQueueProvider wraps the logged-in routes only,
+  // so the background AI eval queue only runs for authenticated users. It
+  // reads useAuth() internally; it is a sibling context to AuthContext, never
+  // merged into it (async writes inside AuthContext desync auth state).
   return (
-    <>
+    <EvalQueueProvider>
       <TopNav />
       <div className="pt-40">
         <Routes>
@@ -80,7 +84,7 @@ const AppRoutes = () => {
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </div>
-    </>
+    </EvalQueueProvider>
   );
 };
 

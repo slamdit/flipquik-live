@@ -4,6 +4,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { auth, items, sales } from '@/lib/supabase';
 import { FileText, Package, Tag, DollarSign, TrendingUp, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import DraftsInbox from '@/components/dashboard/DraftsInbox';
+import BackfillEvalPrompt from '@/components/dashboard/BackfillEvalPrompt';
 
 function StatCard({ icon: Icon, label, value, sublabel, to, accent }) {
   const content = (
@@ -119,6 +121,9 @@ export default function Dashboard() {
             <p className="text-sm opacity-75 mt-0.5">from {recentSales.length} sale{recentSales.length !== 1 ? 's' : ''}</p>
           )}
         </div>
+
+        <BackfillEvalPrompt />
+        <DraftsInbox />
       </div>
     </div>
   );

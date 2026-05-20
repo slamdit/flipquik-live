@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Package, Search, X, Trash2, ChevronDown, ChevronRight, PartyPopper } from 'lucide-react';
+import { Package, Search, X, Trash2, ChevronDown, ChevronRight, PartyPopper, Loader2, AlertCircle, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,6 +9,7 @@ import EditItemModal from '@/components/inventory/EditItemModal';
 import SaleModal from '@/components/inventory/SaleModal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useEvalQueue } from '@/lib/EvalQueueContext';
 import { toast } from 'sonner';
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -85,8 +86,44 @@ function applyFilters(items, { search, category, sortBy }) {
   });
 }
 
+// ── Eval status pill (only meaningful on clipped items) ───────────
+function EvalStatusPill({ item, onRetry }) {
+  if (item.status !== 'clipped') return null;
+  if (item.eval_status === 'pending') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+        Processing AI…
+      </span>
+    );
+  }
+  if (item.eval_status === 'complete') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+        <Sparkles className="w-2.5 h-2.5" />
+        AI ready
+      </span>
+    );
+  }
+  if (item.eval_status === 'failed') {
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onRetry?.(item.id); }}
+        className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 hover:bg-red-200"
+        title={item.eval_error || 'AI eval failed'}
+      >
+        <AlertCircle className="w-2.5 h-2.5" />
+        AI failed — retry
+        <RotateCcw className="w-2.5 h-2.5" />
+      </button>
+    );
+  }
+  return null;
+}
+
 // ── Item Card ────────────────────────────────────────────────────
-function ItemCard({ item, onEdit, onDelete, onMarkFlipped }) {
+function ItemCard({ item, onEdit, onDelete, onMarkFlipped, onRetryEval }) {
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async (e) => {
@@ -130,10 +167,11 @@ function ItemCard({ item, onEdit, onDelete, onMarkFlipped }) {
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+        <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5 items-center">
           {item.brand    && <span className="text-xs text-slate-500">{item.brand}</span>}
           {item.category && <span className="text-xs text-slate-400">{item.category}</span>}
           {item.condition && <span className="text-xs text-slate-400">{item.condition}</span>}
+          <EvalStatusPill item={item} onRetry={onRetryEval} />
         </div>
 
         <div className="flex items-center gap-3 mt-1">
@@ -171,7 +209,7 @@ function ItemCard({ item, onEdit, onDelete, onMarkFlipped }) {
 }
 
 // ── Collapsible group for All tab ────────────────────────────────
-function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch, onMarkFlipped }) {
+function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch, onMarkFlipped, onRetryEval }) {
   const [open, setOpen] = useState(defaultOpen);
   if (count === 0) return null;
   return (
@@ -188,7 +226,7 @@ function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch, onMark
       {open && (
         <div className="px-3 pb-3 space-y-2">
           {items.map(item => (
-            <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} onMarkFlipped={onMarkFlipped} />
+            <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} onMarkFlipped={onMarkFlipped} onRetryEval={onRetryEval} />
           ))}
         </div>
       )}
@@ -197,7 +235,7 @@ function ItemGroup({ title, count, items, defaultOpen, onEdit, onRefetch, onMark
 }
 
 // ── Flat list for individual tabs ────────────────────────────────
-function ItemList({ items, loading, emptyText, emptySubtext, onEdit, onRefetch, onMarkFlipped }) {
+function ItemList({ items, loading, emptyText, emptySubtext, onEdit, onRefetch, onMarkFlipped, onRetryEval }) {
   if (loading) return (
     <div className="flex justify-center py-16">
       <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
@@ -213,7 +251,7 @@ function ItemList({ items, loading, emptyText, emptySubtext, onEdit, onRefetch, 
   return (
     <div className="space-y-2">
       {items.map(item => (
-        <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} onMarkFlipped={onMarkFlipped} />
+        <ItemCard key={item.id} item={item} onEdit={onEdit} onDelete={onRefetch} onMarkFlipped={onMarkFlipped} onRetryEval={onRetryEval} />
       ))}
     </div>
   );
@@ -296,6 +334,7 @@ export default function Inventory() {
   const [statusFilter, setStatusFilter] = useState('__all__');
   const [editingItem,  setEditingItem]  = useState(null);
   const [saleItem,     setSaleItem]     = useState(null);
+  const { refreshTick, retry: retryEval } = useEvalQueue();
 
   // ── Queries ──
   const allQuery = useQuery({
@@ -325,6 +364,17 @@ export default function Inventory() {
     allQuery.refetch();
     if (listedEnabled)  listedQuery.refetch();
     if (flippedEnabled) flippedQuery.refetch();
+  };
+
+  // When the background eval queue completes any job, refetch so the
+  // status pills and (now-populated) AI fields update without a reload.
+  useEffect(() => {
+    if (refreshTick > 0) refetchAll();
+  }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRetryEval = (itemId) => {
+    retryEval(itemId);
+    toast.success('Retrying AI eval…');
   };
 
   // ── Derive categories for filter ──
@@ -420,9 +470,9 @@ export default function Inventory() {
                   </div>
                 ) : (
                   <>
-                    <ItemGroup title="Clipped" count={allClipped.length} items={allClipped} defaultOpen={true}  onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} />
-                    <ItemGroup title="Listed"  count={allListed.length}  items={allListed}  defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} />
-                    <ItemGroup title="Flipped" count={allFlipped.length} items={allFlipped} defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} />
+                    <ItemGroup title="Clipped" count={allClipped.length} items={allClipped} defaultOpen={true}  onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} onRetryEval={handleRetryEval} />
+                    <ItemGroup title="Listed"  count={allListed.length}  items={allListed}  defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} onRetryEval={handleRetryEval} />
+                    <ItemGroup title="Flipped" count={allFlipped.length} items={allFlipped} defaultOpen={false} onEdit={setEditingItem} onRefetch={refetchAll} onMarkFlipped={setSaleItem} onRetryEval={handleRetryEval} />
                   </>
                 )}
               </div>
@@ -447,6 +497,7 @@ export default function Inventory() {
               onEdit={setEditingItem}
               onRefetch={refetchAll}
               onMarkFlipped={setSaleItem}
+              onRetryEval={handleRetryEval}
             />
           </TabsContent>
 
@@ -467,6 +518,7 @@ export default function Inventory() {
               onEdit={setEditingItem}
               onRefetch={refetchAll}
               onMarkFlipped={setSaleItem}
+              onRetryEval={handleRetryEval}
             />
           </TabsContent>
 
@@ -488,6 +540,7 @@ export default function Inventory() {
               onEdit={setEditingItem}
               onRefetch={refetchAll}
               onMarkFlipped={setSaleItem}
+              onRetryEval={handleRetryEval}
             />
           </TabsContent>
         </Tabs>

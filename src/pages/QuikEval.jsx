@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Zap, X, RefreshCw, Lightbulb, Info, Pencil } from 'lucide-react';
+import { Zap, X, RefreshCw, Lightbulb, Info, Pencil, Bookmark } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,20 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import PhotoCapture from '@/components/capture/PhotoCapture';
 import EbaySoldComps from '@/components/quikeval/EbaySoldComps';
-import supabase from '@/lib/supabase';
+import supabase, { items as itemsDb, itemPhotos as itemPhotosDb } from '@/lib/supabase';
 import { isProActive } from '@/lib/proStatus';
+import { useEvalQueue } from '@/lib/EvalQueueContext';
 import { toast } from 'sonner';
+
+// "Clip 5/19 11:42a" — used when the user hits Clip Now before typing a name.
+function autoClipName(d = new Date()) {
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const hour12 = (d.getHours() % 12) || 12;
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const ampm = d.getHours() < 12 ? 'a' : 'p';
+  return `Clip ${month}/${day} ${hour12}:${min}${ampm}`;
+}
 
 // Safely convert AI response values to numbers (handles "$24.99", "24.99", null, etc.)
 function safeNum(val) {
@@ -72,6 +83,8 @@ export default function QuikEval() {
   const [editingQuery, setEditingQuery] = useState(false);
   const [editInput, setEditInput] = useState('');
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const [clipping, setClipping] = useState(false);
+  const { enqueueNow } = useEvalQueue();
 
   // Check if user is Pro-entitled — paid Stripe Pro/Max OR active Comeback window.
   // Routed through isProActive() so the Comeback honor-system grant is honored.
@@ -199,6 +212,62 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
     setNudgeDismissed(false);
   };
 
+  // Field-flow path: save the photos as a clipped draft RIGHT NOW, kick off
+  // the AI eval in the background, return to capture state for the next item.
+  // The user does not wait for AI on weak signal — that was the field-test
+  // friction Sally reported.
+  const handleClipNow = async () => {
+    if (photos.length === 0 || clipping) return;
+    setClipping(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('Not signed in.');
+      const userId = session.user.id;
+
+      const firstUrl = photos[0]?.compressedUrl || photos[0]?.displayUrl || null;
+
+      const created = await itemsDb.create({
+        user_id: userId,
+        name: itemSpecs.trim() || autoClipName(),
+        status: 'clipped',
+        eval_status: 'pending',
+        primary_photo_url: firstUrl || undefined,
+        internal_notes: itemSpecs.trim() || undefined,
+      });
+
+      // Persist photo rows so EditItemModal + the eval queue can read them.
+      // Same column shape as FlipIt.saveItem (legacy + Phase-1A + photo_url).
+      await Promise.all(
+        photos.map((p, i) => {
+          const url = p.compressedUrl || p.displayUrl;
+          if (!url) return Promise.resolve();
+          return itemPhotosDb.create({
+            user_id:        userId,
+            item_id:        created.id,
+            photo_url:      url,
+            original_photo: url,
+            is_cover:       i === 0,
+            public_url:     url,
+            storage_path:   p.storagePath || null,
+            sort_order:     i,
+            is_primary:     i === 0,
+            photo_type:     'listing',
+            source:         'upload',
+          });
+        })
+      );
+
+      enqueueNow();
+      toast.success('Clipped — eval running in background.');
+      handleSkip(); // resets photos/itemSpecs/result for next capture
+    } catch (err) {
+      console.error('[QuikEval] Clip Now failed:', err);
+      toast.error(err?.message || 'Failed to clip. Try again.');
+    } finally {
+      setClipping(false);
+    }
+  };
+
   const hasModelNumber = (name) => {
     if (!name) return false;
     return /\(.*[A-Z0-9]{4,}.*\)/.test(name) ||
@@ -244,16 +313,42 @@ Be conservative. Do not inflate prices. Base estimates on realistic sold comps f
                 className="min-h-16 text-sm"
               />
             </div>
-            <Button
-              onClick={runEvaluation}
-              disabled={photos.length === 0 || evaluating || uploading}
-              size="lg"
-              className="w-full h-14 text-base bg-amber-500 hover:bg-amber-600 text-white"
-              data-testid="quikeval-analyze"
-            >
-              <Zap className="w-5 h-5 mr-2" />
-              Flip or Skip?
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleClipNow}
+                disabled={photos.length === 0 || evaluating || uploading || clipping}
+                size="lg"
+                variant="outline"
+                className="h-14 text-base border-slate-300"
+                data-testid="quikeval-clip-now"
+              >
+                {clipping ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-600 rounded-full animate-spin" />
+                    Clipping...
+                  </div>
+                ) : (
+                  <>
+                    <Bookmark className="w-5 h-5 mr-2" />
+                    Clip Now
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={runEvaluation}
+                disabled={photos.length === 0 || evaluating || uploading || clipping}
+                size="lg"
+                className="h-14 text-base bg-amber-500 hover:bg-amber-600 text-white"
+                data-testid="quikeval-analyze"
+              >
+                <Zap className="w-5 h-5 mr-2" />
+                Flip or Skip?
+              </Button>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              <strong>Clip Now</strong> saves and queues the AI eval in the background — fast on weak signal.
+              <strong className="ml-2">Flip or Skip?</strong> waits for AI now so you see comps before buying.
+            </p>
           </div>
         )}
 

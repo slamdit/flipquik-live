@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Zap, Sparkles, RefreshCw, X, Check, Copy, ShoppingBag, Bookmark, Mail, ClipboardCopy } from 'lucide-react';
+import { Zap, Sparkles, RefreshCw, X, Check, Copy, ShoppingBag, Bookmark, Mail, ClipboardCopy, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -343,6 +343,19 @@ export default function FlipIt() {
     }
   };
 
+  // Field-flow continuation: save as clipped, then jump straight back to
+  // QuikEval for the next item. Same gates as Clip It.
+  const handleClipAndNext = async () => {
+    if (!validatePurchasePrice()) return;
+    try {
+      await saveItem('clipped');
+      toast.success('Clipped — next item.');
+      navigate('/QuikEval');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to save. Try again.');
+    }
+  };
+
   const handleListIt = async () => {
     if (!validatePurchasePrice()) return;
     try {
@@ -376,6 +389,25 @@ export default function FlipIt() {
           >
             <Sparkles className="w-4 h-4 mr-2" />
             Generate Listing
+          </Button>
+          <Button
+            onClick={handleClipAndNext}
+            disabled={saving}
+            size="lg"
+            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {saving ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving...
+              </div>
+            ) : (
+              <>
+                <Bookmark className="w-4 h-4 mr-2" />
+                Clip &amp; Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
           </Button>
           <div className="grid grid-cols-2 gap-3">
             <Button
